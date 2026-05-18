@@ -1,32 +1,145 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# =========================
+# Go build artifacts
+# =========================
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-
-# Test binary, built with `go test -c`
 *.test
-
-# Code coverage profiles and other test artifacts
 *.out
-coverage.*
+*.a
+
+# Go workspace / binaries
+bin/
+build/
+dist/
+
+# Coverage reports
+coverage.out
+coverage.html
 *.coverprofile
-profile.cov
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Dependency directories (if not using Go modules)
+vendor/
 
-# Go workspace file
-go.work
-go.work.sum
+# Go module files (keep these!)
+!go.mod
+!go.sum
 
-# env file
+# =========================
+# Logs & temp files
+# =========================
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# =========================
+# OS generated files
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# macOS
+Icon?
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# =========================
+# Environment / secrets
+# =========================
 .env
+.env.*
+*.local
+*.secret
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# =========================
+# IDEs & Editors
+# =========================
+
+# VS Code
+.vscode/
+.history/
+
+# JetBrains (GoLand, IntelliJ, etc.)
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+
+# Emacs
+*~
+\#*\#
+.emacs.desktop
+.emacs.desktop.lock
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# NetBeans
+nbproject/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# =========================
+# Testing / Debugging
+# =========================
+*.test
+*.prof
+*.pprof
+
+# =========================
+# Docker / DevOps
+# =========================
+docker-compose.override.yml
+
+# Ignore local-only Docker env files
+.env.docker
+
+# =========================
+# Misc
+# =========================
+*.bak
+*.old
+*.orig
+
+# Generated files (customize as needed)
+generated/
+gen/
+blah/
+
+# integration testing
+/testsite
+_integration
+
+# =========================
+# Optional: Uncomment if needed
+# =========================
+
+# Ignore vendor if you use Go modules strictly
+# /vendor/
+
+# Ignore binaries with specific names
+# myapp
