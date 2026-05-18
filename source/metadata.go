@@ -97,7 +97,7 @@ func (m *Metadata) LoadMetadata(locations ...string) (*SiteMetadata, error) {
 	})
 
 	// TODO: maintain hierarchy and flatten appropriately
-	var manifest ContentManifest
+	manifest := ContentManifest{}
 	for _, ce := range metadata.SiteContentEntities {
 
 		fm := &ce.ContentMetadata

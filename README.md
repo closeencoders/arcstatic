@@ -4,6 +4,23 @@ Arcstatic is a simple static site generator practice/learning project. While not
 
 (documentation work in progress, this code is not fully released or completed yet)
 
+## Example Commands
+
+```
+Usage of arcstatic:
+  -build
+        Builds static site from provided resources. Defaults to current worked directory.
+  -in string
+        Static site context input location. Defaults to current worked directory.
+  -port int
+        location to file serve. If the serve command is not used, this is ignored (default 8000)
+  -serve
+        Serve static site from provided resources for testing. Defaults to current worked directory.
+  -verbose
+        run verbose
+```
+
+
 ## Example Feed
 
 ```html
