@@ -19,7 +19,7 @@ func TestLoadsiteCtx(t *testing.T) {
 	}{
 		{
 			name:    "Full Override",
-			yaml:    "site_url: https://blah.com\npost_root_dir: /blah/posts",
+			yaml:    "site_url: https://blah.com\npost_input_dir: /blah/posts",
 			wantUrl: "https://blah.com",
 			wantDir: "/blah/posts",
 		},
