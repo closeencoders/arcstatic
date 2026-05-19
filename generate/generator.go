@@ -47,7 +47,7 @@ func (g *Generator) Generate(metadata source.SiteMetadata) error {
 
 		rawFile, err := source.LoadFileBytes(ce.InPath)
 		if err != nil {
-			slog.Warn("unable to create file, relative path is invalid %s, %w", ce.RawPath, err)
+			slog.Warn("unable to create file, relative path is invalid %s, %w", ce.RelativePath, err)
 			continue
 		}
 
@@ -62,6 +62,7 @@ func (g *Generator) Generate(metadata source.SiteMetadata) error {
 
 		// write content to site
 		outPath := filepath.Join(g.ctx.SiteRoot, ce.OutPath)
+		slog.Debug("Writing content", "path", outPath)
 		err = os.WriteFile(outPath, content, _defaultFilePerm)
 		if err != nil {
 			return fmt.Errorf("failed to content to file: %w", err)

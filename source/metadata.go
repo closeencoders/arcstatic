@@ -45,8 +45,6 @@ type ContentEntity struct {
 	Name string
 	// Data extracted via a header or similar from a content file
 	ContentMetadata ContentMetadata
-	// Sub-path from root to the content. e.g. /rootname/posts/
-	RawPath string
 	// Sub-path from root to the content. e.g. /posts/
 	RelativePath string
 	// Full path to file with rendered content
@@ -200,7 +198,6 @@ func (m *Metadata) getContentMetadata(fileData []byte, fileName string, contentR
 	ce := ContentEntity{
 		ContentMetadata: frontmatter,
 		Name:            fullFileName,
-		RawPath:         m.ctx.SiteRoot,
 	}
 
 	subDir := ""
@@ -210,11 +207,9 @@ func (m *Metadata) getContentMetadata(fileData []byte, fileName string, contentR
 		case m.ctx.PostInputDir:
 			ce.ContentMetadata.TemplateId = _defaultPostTemplate
 			subDir = m.ctx.PostOutDir
-			ce.RawPath = filepath.Join(m.ctx.SiteRoot, subDir)
 
 		case m.ctx.PageInputDir:
 			ce.ContentMetadata.TemplateId = _defaultPageTemplate
-			ce.RawPath = m.ctx.SiteRoot
 		}
 	}
 
