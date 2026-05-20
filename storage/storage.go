@@ -34,7 +34,7 @@ func (osFileStorage) Open(name string) (fs.File, error) {
 
 func (osFileStorage) Write(name string, data []byte, perm int) error {
 	if err := os.WriteFile(name, data, os.FileMode(perm)); err != nil {
-		return fmt.Errorf("failed to write file %s perm %s: %w", name, perm, err)
+		return fmt.Errorf("failed to write file %s perm %d: %w", name, perm, err)
 	}
 	return nil
 }
