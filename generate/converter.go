@@ -12,17 +12,17 @@ import (
 	"github.com/closeencoders/arcstatic/source"
 )
 
-type Converter struct {
+type converter struct {
 	ctx       config.SiteContext
 	markdown  Markdown
-	templater Templater
+	templater templater
 }
 
-func NewConverter(ctx config.SiteContext, markdown Markdown, templater Templater) *Converter {
-	return &Converter{ctx: ctx, markdown: markdown, templater: templater}
+func NewConverter(ctx config.SiteContext, markdown Markdown, templater templater) *converter {
+	return &converter{ctx: ctx, markdown: markdown, templater: templater}
 }
 
-func (c *Converter) ConvertToContent(rawFile []byte, content *source.ContentEntity, manifest source.ContentManifest) ([]byte, error) {
+func (c *converter) ConvertToContent(rawFile []byte, content *source.ContentEntity, manifest source.ContentManifest) ([]byte, error) {
 
 	_, body, err := source.SplitFileContent(rawFile, c.ctx.FrontmatterToken)
 	if err != nil {

@@ -7,11 +7,11 @@ import (
 	"reflect"
 )
 
-type Templater struct {
+type templater struct {
 	template *template.Template
 }
 
-func NewTemplater(components map[string][]byte, customFuncs map[string]any) (*Templater, error) {
+func NewTemplater(components map[string][]byte, customFuncs map[string]any) (*templater, error) {
 
 	funcs := template.FuncMap{
 		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
@@ -28,10 +28,10 @@ func NewTemplater(components map[string][]byte, customFuncs map[string]any) (*Te
 		}
 	}
 
-	return &Templater{template: temp}, nil
+	return &templater{template: temp}, nil
 }
 
-func (t *Templater) Render(data any, templateSrc string) ([]byte, error) {
+func (t *templater) Render(data any, templateSrc string) ([]byte, error) {
 
 	tmpl, err := t.template.Clone()
 	if err != nil {

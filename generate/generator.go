@@ -11,6 +11,7 @@ import (
 
 	"github.com/closeencoders/arcstatic/config"
 	"github.com/closeencoders/arcstatic/source"
+	"github.com/closeencoders/arcstatic/storage"
 )
 
 const (
@@ -27,16 +28,17 @@ type Urlset struct {
 	Urls    []source.SitemapUrl `xml:"url"`
 }
 
-type Generator struct {
+type generator struct {
 	ctx       config.SiteContext
-	converter Converter
+	converter converter
+	store     storage.Storage
 }
 
-func NewGenerator(ctx config.SiteContext, converter Converter) *Generator {
-	return &Generator{ctx: ctx, converter: converter}
+func NewGenerator(ctx config.SiteContext, converter converter, store storage.Storage) *generator {
+	return &generator{ctx: ctx, converter: converter, store: store}
 }
 
-func (g *Generator) Generate(metadata source.SiteMetadata) error {
+func (g *generator) Generate(metadata source.SiteMetadata) error {
 
 	slog.Info("generating site", "size", len(metadata.SiteContentEntities))
 	if err := mkDirIfNotExists(_defaultFilePerm, g.ctx.SiteRoot, g.ctx.PostOutDir); err != nil {
@@ -45,7 +47,7 @@ func (g *Generator) Generate(metadata source.SiteMetadata) error {
 
 	for _, ce := range metadata.SiteContentEntities {
 
-		rawFile, err := source.LoadFileBytes(ce.InPath)
+		fileData, err := storage.LoadSiteFile(ce.InPath, g.store)
 		if err != nil {
 			slog.Warn("unable to create file, relative path is invalid %s, %w", ce.RelativePath, err)
 			continue
@@ -55,7 +57,7 @@ func (g *Generator) Generate(metadata source.SiteMetadata) error {
 		if err != nil {
 			return fmt.Errorf("unable to make new dir for content: %w", err)
 		}
-		content, err := g.converter.ConvertToContent(rawFile, ce, metadata.ContentManifest)
+		content, err := g.converter.ConvertToContent(fileData.Data, ce, metadata.ContentManifest)
 		if err != nil {
 			return err
 		}
@@ -63,7 +65,7 @@ func (g *Generator) Generate(metadata source.SiteMetadata) error {
 		// write content to site
 		outPath := filepath.Join(g.ctx.SiteRoot, ce.OutPath)
 		slog.Debug("Writing content", "path", outPath)
-		err = os.WriteFile(outPath, content, _defaultFilePerm)
+		err = g.store.Write(outPath, content, _defaultFilePerm)
 		if err != nil {
 			return fmt.Errorf("failed to content to file: %w", err)
 		}
@@ -88,7 +90,7 @@ func mkDirIfNotExists(fileMode os.FileMode, path ...string) error {
 	return nil
 }
 
-func (g *Generator) createSitemapFile(urls []source.SitemapUrl) {
+func (g *generator) createSitemapFile(urls []source.SitemapUrl) {
 
 	siteMapUrlSet := Urlset{
 		Xmlns:   _sitemapXmlMeta,
@@ -110,7 +112,7 @@ func (g *Generator) createSitemapFile(urls []source.SitemapUrl) {
 	}
 }
 
-func (g *Generator) createMetadataFile(siteMetadata []*source.ContentMetadata) {
+func (g *generator) createMetadataFile(siteMetadata []*source.ContentMetadata) {
 
 	mkDirIfNotExists(_defaultFilePerm, g.ctx.SiteRoot, "data")
 	postMetadataPath := filepath.Join(g.ctx.SiteRoot, _postsMetadataFile)

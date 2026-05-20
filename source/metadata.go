@@ -1,7 +1,9 @@
 package source
 
 import (
+	"bytes"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/url"
 	"os"
@@ -12,6 +14,8 @@ import (
 	"time"
 
 	"github.com/closeencoders/arcstatic/config"
+	"github.com/closeencoders/arcstatic/storage"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -67,27 +71,28 @@ type ContentMetadata struct {
 
 	Date time.Time `json:"date" yaml:"date"`
 
-	IsDraft bool `json:"-" yaml:"is_draft"`
+	Draft bool `json:"-" yaml:"draft"`
 
 	Type       string   `json:"type" yaml:"type"`
 	Categories []string `json:"categories" yaml:"categories"`
 	Tags       []string `json:"tags" yaml:"tags"`
 }
 
-type Metadata struct {
-	ctx config.SiteContext
+type metadata struct {
+	ctx   config.SiteContext
+	store storage.Storage
 }
 
-func NewMetadata(ctx config.SiteContext) *Metadata {
-	return &Metadata{ctx: ctx}
+func NewMetadata(ctx config.SiteContext, store storage.Storage) *metadata {
+	return &metadata{ctx: ctx, store: store}
 }
 
-func (m *Metadata) LoadMetadata(locations ...string) (*SiteMetadata, error) {
+func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 
 	var metadata SiteMetadata
-	for _, loc := range locations {
+	for _, loc := range paths {
 		if err := m.readSiteMetadataFiles(loc, &metadata); err != nil {
-			return &metadata, fmt.Errorf("failed to load metadata for %s, %w", loc, err)
+			return &metadata, fmt.Errorf("failed to load metadata for %s: %w", loc, err)
 		}
 	}
 	slices.SortFunc(metadata.SiteContentEntities, func(a, b *ContentEntity) int {
@@ -121,30 +126,39 @@ func (m *Metadata) LoadMetadata(locations ...string) (*SiteMetadata, error) {
 	return &metadata, nil
 }
 
-func (m *Metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) error {
+func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) error {
 
 	slog.Debug("rendering content", "path", root)
-	return filepath.WalkDir(root, func(currentPath string, dirEntry os.DirEntry, err error) error {
+	return fs.WalkDir(m.store, root, func(path string, dirEntry os.DirEntry, err error) error {
 
 		if dirEntry == nil || dirEntry.IsDir() {
-			slog.Debug("not a file that can be used for metadata extraction", "dir", dirEntry, "path", root, "currentPath", currentPath)
+			slog.Debug("not a file that can be used for metadata extraction", "dir", dirEntry, "path", root, "currentPath", path)
 			return nil
 		}
-		rawFile, err := LoadFileBytes(currentPath)
+		fileData, err := storage.LoadSiteFile(path, m.store)
 		if err != nil {
 			return fmt.Errorf("failed to load file data: %w", err)
 		}
-		if len(rawFile) < 3 {
+		if fileData.Extension != ".md" && fileData.Extension != ".html" {
+			fmt.Print(fileData.Name)
+			return nil
+		}
+		if len(fileData.Data) < 3 {
 			slog.Debug("no file data viable for conversion found", "dir", dirEntry, "path", root)
 			return nil
 		}
 
-		content, err := m.getContentMetadata(rawFile, dirEntry.Name(), root)
+		content, err := m.getContentMetadata(fileData.Data, dirEntry.Name(), root)
 		if err != nil {
 			return fmt.Errorf("failed to convert to content: %w", err)
 		}
+		content.InPath = path
 
-		content.InPath = currentPath
+		if content.ContentMetadata.Draft {
+			slog.Debug("is draft", "file", path)
+			return nil
+		}
+
 		metadata.SiteContentEntities = append(metadata.SiteContentEntities, content)
 
 		if m.ctx.GenerateSitemapXml {
@@ -179,7 +193,7 @@ func makeSitemapEntry(ctx config.SiteContext, ce *ContentEntity) SitemapUrl {
 }
 
 // TODO: There are a few places I have taken shortcuts like this function that need to be fixed to reduce complexity and lines of code when time permits
-func (m *Metadata) getContentMetadata(fileData []byte, fileName string, contentRoot string) (*ContentEntity, error) {
+func (m *metadata) getContentMetadata(fileData []byte, fileName string, contentRoot string) (*ContentEntity, error) {
 
 	if len(fileData) == 0 {
 		return nil, fmt.Errorf("no data provided for file to be rendered to content")
@@ -276,4 +290,30 @@ func truncateBytes(data []byte, limit int) string {
 		summary += "..."
 	}
 	return summary
+}
+
+// TODO: move
+func SplitFileContent(content []byte, token []byte) (ContentMetadata, []byte, error) {
+
+	var fm ContentMetadata
+	if len(token) < 3 {
+		return fm, content, fmt.Errorf("invalid frontmatter token: minimum length 3 required")
+	}
+
+	content = bytes.TrimSpace(content)
+	if !bytes.HasPrefix(content, token) {
+		return fm, content, fmt.Errorf("content missing starting frontmatter token")
+	}
+	start := len(token)
+	end := bytes.Index(content[start:], token)
+	if end == -1 {
+		return fm, content, fmt.Errorf("closing frontmatter token not found")
+	}
+
+	fmData := content[start : start+end]
+	body := content[start+end+len(token):]
+	if err := yaml.Unmarshal(fmData, &fm); err != nil {
+		return fm, body, fmt.Errorf("yaml unmarshal error: %w", err)
+	}
+	return fm, bytes.TrimSpace(body), nil
 }
