@@ -1,11 +1,12 @@
-# arcstatic
+# Arcstatic
+[![coverage](https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/main/coverage.svg)](https://github.com/closeencoders/arcstatic/actions)
+[![Go Status](https://github.com/closeencoders/arcstatic/actions/workflows/go.yml/badge.svg)](https://github.com/closeencoders/arcstatic/actions)
 
 Arcstatic is a simple static site generator practice/learning project. While not intended for a production environement, I do personally use it for my own projects.
 
 (documentation work in progress, this code is not fully released or completed yet)
 
 ## Example Commands
-
 ```
 Usage of arcstatic:
   -build
@@ -20,9 +21,7 @@ Usage of arcstatic:
         run verbose
 ```
 
-
 ## Example Feed
-
 ```html
 <div ... >
 {{range .blog}}
@@ -54,7 +53,7 @@ Usage of arcstatic:
 Currently just a config.yml file in the root of the project.
 
 ```yaml
-post_root_dir: /override/input/post/location
+post_input_dir: /override/input/post/location
 site_url: https://yourdomain.com
 
 make_toc: true
