@@ -38,4 +38,4 @@ jobs:
         ## when token is not specified (value '') this feature is turned off
         ## in this example badge is created and committed only for main branch
         git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
-        git-branch: badges 
+        git-branch: main
