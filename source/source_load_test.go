@@ -177,11 +177,10 @@ func TestLoadMetadata(t *testing.T) {
 				if entitiesCount != 0 {
 					t.Fatalf("expected 0 entities loaded, got %d", entitiesCount)
 				}
-				// Gracefully exit execution stack, validation complete
 				return
 			}
 			if entitiesCount == 0 {
-				t.Fatalf("invariant violation: metadata should have been loaded for target path: %q", tc.path)
+				t.Fatalf("metadata should have been loaded for target path: %q", tc.path)
 			}
 
 			ce := result.SiteContentEntities[0]
