@@ -9,18 +9,22 @@ import (
 	"github.com/closeencoders/arcstatic/storage"
 )
 
-type mockStorage struct {
+type fakeStorage struct {
 	testFiles fstest.MapFS
 }
 
-var _ storage.Storage = mockStorage{}
+var _ storage.Storage = fakeStorage{}
 
-func (mock mockStorage) Write(name string, data []byte, perm int) error {
+func (fs fakeStorage) Write(name string, data []byte, perm int) error {
 	return nil
 }
 
-func (mock mockStorage) Open(name string) (fs.File, error) {
-	return mock.testFiles.Open(name)
+func (fs fakeStorage) Open(name string) (fs.File, error) {
+	return fs.testFiles.Open(name)
+}
+
+func (fs fakeStorage) Mkdir(perm int, path ...string) (string, error) {
+	return "", nil
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -70,13 +74,12 @@ func TestLoadConfig(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		// Localize range variables for structural boundary isolation
 		tc := tt
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockStore := mockStorage{testFiles: tc.configFile}
+			mockStore := fakeStorage{testFiles: tc.configFile}
 			result, err := LoadSiteContext(baseDir, mockStore)
 
 			if err == nil && tc.wantErr {
@@ -85,7 +88,7 @@ func TestLoadConfig(t *testing.T) {
 			if tc.wantErr && err != nil {
 				return
 			}
-			AssertEqual(t, "SiteUrl", result.SiteUrl, tc.wantUrl)
+			AssertEqual(t, "SiteUrl", result.SiteURL, tc.wantUrl)
 			AssertEqual(t, "PostInputDir", result.PostInputDir, tc.wantDir)
 		})
 	}
@@ -157,13 +160,12 @@ func TestLoadMetadata(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		// Localize range variables for structural boundary isolation
 		tc := tt
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			mockStore := mockStorage{testFiles: tc.fileData}
+			mockStore := fakeStorage{testFiles: tc.fileData}
 			ml := metadata{ctx: ctx, store: mockStore}
 			result, err := ml.LoadMetadata(tc.path)
 			if err != nil {

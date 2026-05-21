@@ -1,27 +1,34 @@
 package config
 
 type SiteContext struct {
+	// ComponentMap holds raw template partials or blocks keyed by their identifier name.
 	ComponentMap map[string][]byte
-	TemplateMap  map[string][]byte
+	// TemplateMap holds raw layout templates keyed by their identifier name.
+	TemplateMap map[string][]byte
 
-	SiteUrl  string `yaml:"site_url"`
+	// SiteURL is the absolute base URL (e.g., "https://example.com").
+	SiteURL  string `yaml:"site_url"`
 	SiteRoot string
 	Base     string
 
 	DefaultType string `yaml:"default_type"`
 
-	SiteInputRoot string
+	// FrontmatterToken marks the boundary of configuration blocks in source files (e.g., "---" or "+++").
+	FrontmatterToken string `yaml:"frontmatter_token"`
 
-	FrontmatterToken []byte `yaml:"frontmatter_token"`
-
+	// PostInputDir is the absolute path to the raw posts folder, decoupled from output locations.
 	PostInputDir string `yaml:"post_input_dir"`
-	PostOutDir   string `yaml:"post_output_dir"`
+
+	// PostOutputDir is the path to write compiled posts, relative to the SiteRoot.
+	PostOutputDir string `yaml:"post_output_dir"`
+
+	// TODO:
 	PageInputDir string
 
 	// TODO: Isolation to individual content preferences
 	FullHtmlPath        bool
-	MakePostMetadata    bool `yaml:"make_post_data"`
-	MakeSitemapXml      bool `yaml:"make_sitemap"`
+	MakePostMetadata    bool `yaml:"make_post_metadata"`
+	MakeSitemapXML      bool `yaml:"make_sitemap"`
 	MakeTableOfContents bool `yaml:"make_toc"`
 }
 
@@ -31,15 +38,15 @@ func NewContext(root string) *SiteContext {
 		ComponentMap: make(map[string][]byte),
 		TemplateMap:  make(map[string][]byte),
 
-		SiteInputRoot: root,
-		SiteRoot:      root,
-		PostOutDir:    root,
+		SiteRoot: root,
+
+		PostOutputDir: "/",
 		Base:          "/",
 
-		FrontmatterToken: []byte("---"),
+		FrontmatterToken: "---",
 
 		FullHtmlPath:        false,
-		MakeSitemapXml:      true,
+		MakeSitemapXML:      true,
 		MakePostMetadata:    true,
 		MakeTableOfContents: false,
 	}

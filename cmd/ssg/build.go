@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"log/slog"
@@ -12,7 +12,7 @@ func executeBuild(path string) {
 
 	store := storage.NewOSFileStorage()
 
-	slog.Debug("loading site context and configuration")
+	slog.Debug("loading site context and configuration", "path", path)
 	ctx, err := source.LoadSiteContext(path, store)
 	if err != nil {
 		slog.Error("failed to load site context and configuration", "error", err)

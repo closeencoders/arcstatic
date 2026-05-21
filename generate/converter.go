@@ -29,7 +29,7 @@ func (c *converter) ConvertToContent(rawFile []byte, content *source.ContentEnti
 		slog.Warn("unable to extract frontmatter, continuing with defaults", "name", content.Name, "err", err)
 	}
 
-	canonicalUrl, _ := url.Parse(c.ctx.SiteUrl)
+	canonicalUrl, _ := url.Parse(c.ctx.SiteURL)
 	canonicalUrl.Path = path.Join(canonicalUrl.Path, content.ContentMetadata.Url)
 	renderMap := map[string]interface{}{
 		"Metadata":     content.ContentMetadata,

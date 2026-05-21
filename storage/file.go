@@ -9,11 +9,19 @@ import (
 	"strings"
 )
 
-func LoadFilesToMap(root string, store fs.FS) (map[string][]byte, error) {
+var errUnsupported = errors.New("unsupported file extension")
+
+type FileData struct {
+	Name      string
+	Extension string
+	Data      []byte
+}
+
+func LoadFilesToMap(root string, fsys fs.FS) (map[string][]byte, error) {
 	fileMap := make(map[string][]byte)
 	slog.Debug("loading file data to map", "path", root)
 
-	err := fs.WalkDir(store, root, func(path string, entry fs.DirEntry, err error) error {
+	err := fs.WalkDir(fsys, root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -21,7 +29,7 @@ func LoadFilesToMap(root string, store fs.FS) (map[string][]byte, error) {
 			return nil
 		}
 
-		fileData, err := LoadSiteFile(path, store)
+		fileData, err := LoadSiteFile(path, fsys)
 		if errors.Is(err, errUnsupported) {
 			return nil
 		}
@@ -36,13 +44,13 @@ func LoadFilesToMap(root string, store fs.FS) (map[string][]byte, error) {
 	return fileMap, err
 }
 
-func LoadSiteFile(path string, store fs.FS) (FileData, error) {
+func LoadSiteFile(path string, fsys fs.FS) (FileData, error) {
 
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	// TODO: This is dumb
 	case ".md", ".markdown", ".html", ".htm", ".txt", ".yml":
-		data, err := fs.ReadFile(store, path)
+		data, err := fs.ReadFile(fsys, path)
 		if err != nil {
 			return FileData{}, fmt.Errorf("failed to load site file %s: %w", path, err)
 		}

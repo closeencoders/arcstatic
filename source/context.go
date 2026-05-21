@@ -33,6 +33,8 @@ func LoadSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 		ctx = createDefaultContext(path)
 	}
 
+	slog.Debug("config loaded", "config", ctx)
+
 	// TODO: Embedded defaults/themes with correct error handling
 	componentsPath := filepath.Join(path, _componentsLoc)
 	componentsMap, err := storage.LoadFilesToMap(componentsPath, store)
@@ -73,7 +75,7 @@ func createSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 
 func createDefaultContext(path string) *config.SiteContext {
 	ctx := config.NewContext(path)
-	ctx.SiteUrl = _defaultUrl
+	ctx.SiteURL = _defaultUrl
 	ctx.PostInputDir = filepath.Join(path, _postsLoc)
 	ctx.PageInputDir = filepath.Join(path, _pagesLoc)
 	return ctx

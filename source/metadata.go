@@ -161,7 +161,7 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 
 		metadata.SiteContentEntities = append(metadata.SiteContentEntities, content)
 
-		if m.ctx.MakeSitemapXml {
+		if m.ctx.MakeSitemapXML {
 			xmlUrl := makeSitemapEntry(m.ctx, content)
 			metadata.SiteMapUrlMetadata = append(metadata.SiteMapUrlMetadata, xmlUrl)
 		}
@@ -171,7 +171,7 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 }
 
 func makeSitemapEntry(ctx *config.SiteContext, ce *ContentEntity) SitemapUrl {
-	siteUrl, _ := url.Parse(ctx.SiteUrl)
+	siteUrl, _ := url.Parse(ctx.SiteURL)
 	if ctx.FullHtmlPath {
 		siteUrl.Path = path.Join(siteUrl.Path, ce.OutPath)
 	} else {
@@ -188,7 +188,7 @@ func makeSitemapEntry(ctx *config.SiteContext, ce *ContentEntity) SitemapUrl {
 		Loc:     loc,
 		LastMod: xmlDate.Format(_YYYYMMDD_RFC3339),
 	}
-	slog.Debug("sitemap", "url", xmlUrl, "site", ctx.SiteUrl)
+	slog.Debug("sitemap", "url", xmlUrl, "site", ctx.SiteURL)
 	return xmlUrl
 }
 
@@ -220,7 +220,7 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, contentR
 
 		case m.ctx.PostInputDir:
 			ce.ContentMetadata.TemplateId = _defaultPostTemplate
-			subDir = m.ctx.PostOutDir
+			subDir = m.ctx.PostOutputDir
 
 		case m.ctx.PageInputDir:
 			ce.ContentMetadata.TemplateId = _defaultPageTemplate
@@ -293,19 +293,20 @@ func truncateBytes(data []byte, limit int) string {
 }
 
 // TODO: move
-func SplitFileContent(content []byte, token []byte) (ContentMetadata, []byte, error) {
+func SplitFileContent(content []byte, token string) (ContentMetadata, []byte, error) {
 
+	tok := []byte(token)
 	var fm ContentMetadata
 	if len(token) < 3 {
 		return fm, content, fmt.Errorf("invalid frontmatter token: minimum length 3 required")
 	}
 
 	content = bytes.TrimSpace(content)
-	if !bytes.HasPrefix(content, token) {
+	if !bytes.HasPrefix(content, tok) {
 		return fm, content, fmt.Errorf("content missing starting frontmatter token")
 	}
 	start := len(token)
-	end := bytes.Index(content[start:], token)
+	end := bytes.Index(content[start:], tok)
 	if end == -1 {
 		return fm, content, fmt.Errorf("closing frontmatter token not found")
 	}
