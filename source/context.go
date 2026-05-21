@@ -22,15 +22,15 @@ const (
 	_defaultUrl    = "http://yourdomain.com/#"
 )
 
-func LoadSiteContext(path string, store fs.FS) (config.SiteContext, error) {
+func LoadSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 
-	ctx, err := loadSiteCtx(path, store)
+	ctx, err := createSiteContext(path, store)
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
-			return config.SiteContext{}, fmt.Errorf("failed to load site config: %w", err)
+			return nil, fmt.Errorf("invalid config: %w", err)
 		}
 		slog.Warn("no valid configuration file, using defaults", "path", path, "err", err)
-		ctx = newDefaultContext(path)
+		ctx = createDefaultContext(path)
 	}
 
 	// TODO: Embedded defaults/themes with correct error handling
@@ -42,7 +42,7 @@ func LoadSiteContext(path string, store fs.FS) (config.SiteContext, error) {
 	templatesPath := filepath.Join(path, _templatesLoc)
 	templatesMap, err := storage.LoadFilesToMap(templatesPath, store)
 	if err != nil {
-		slog.Warn("templates not loaded, embedded defaults/themes are not implemented yet, content may not be rendered properly", "path", componentsPath)
+		slog.Warn("templates not loaded, embedded defaults/themes are not implemented yet, content may not be rendered properly", "path", templatesPath)
 	}
 
 	ctx.ComponentMap = componentsMap
@@ -50,7 +50,7 @@ func LoadSiteContext(path string, store fs.FS) (config.SiteContext, error) {
 	return ctx, nil
 }
 
-func loadSiteCtx(path string, store fs.FS) (config.SiteContext, error) {
+func createSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 
 	var configPath string = path
 	if !strings.HasSuffix(path, _configName) {
@@ -59,30 +59,22 @@ func loadSiteCtx(path string, store fs.FS) (config.SiteContext, error) {
 
 	fileData, err := storage.LoadSiteFile(configPath, store)
 	if err != nil {
-		return config.SiteContext{}, err
+		return nil, err
 	}
 
-	ctx := newDefaultContext(path)
-	if err := yaml.Unmarshal(fileData.Data, &ctx); err != nil {
-		return config.SiteContext{}, fmt.Errorf("failed to unmarshal site config: %w", err)
+	// Create defaults which should be the minimal operational required data, then apply config file overrides.
+	ctx := createDefaultContext(path)
+	if err := yaml.Unmarshal(fileData.Data, ctx); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal site config file: %w", err)
 	}
 
 	return ctx, nil
 }
 
-func newDefaultContext(location string) config.SiteContext {
-	return config.SiteContext{
-		SiteInputRoot:        location,
-		SiteRoot:             location,
-		Base:                 "/",
-		SiteUrl:              _defaultUrl,
-		PostInputDir:         filepath.Join(location, _postsLoc),
-		PostOutDir:           "/",
-		PageInputDir:         filepath.Join(location, _pagesLoc),
-		FrontmatterToken:     []byte("---"),
-		FullHtmlPath:         false,
-		GenerateSitemapXml:   true,
-		GeneratePostMetadata: true,
-		MakeTableOfContents:  false,
-	}
+func createDefaultContext(path string) *config.SiteContext {
+	ctx := config.NewContext(path)
+	ctx.SiteUrl = _defaultUrl
+	ctx.PostInputDir = filepath.Join(path, _postsLoc)
+	ctx.PageInputDir = filepath.Join(path, _pagesLoc)
+	return ctx
 }

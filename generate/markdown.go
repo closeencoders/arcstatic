@@ -16,7 +16,7 @@ import (
 )
 
 type Markdown struct {
-	ctx      config.SiteContext
+	ctx      *config.SiteContext
 	goldmark goldmark.Markdown
 }
 
@@ -27,7 +27,7 @@ type MarkdownResult struct {
 
 type nodeTransformer struct{}
 
-func NewMarkdown(ctx config.SiteContext) *Markdown {
+func NewMarkdown(ctx *config.SiteContext) *Markdown {
 	gm := goldmark.New(
 		goldmark.WithExtensions(extension.GFM),
 		goldmark.WithRendererOptions(html.WithUnsafe()),

@@ -13,12 +13,12 @@ import (
 )
 
 type converter struct {
-	ctx       config.SiteContext
+	ctx       *config.SiteContext
 	markdown  Markdown
 	templater templater
 }
 
-func NewConverter(ctx config.SiteContext, markdown Markdown, templater templater) *converter {
+func NewConverter(ctx *config.SiteContext, markdown Markdown, templater templater) *converter {
 	return &converter{ctx: ctx, markdown: markdown, templater: templater}
 }
 

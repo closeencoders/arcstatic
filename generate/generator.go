@@ -29,12 +29,12 @@ type Urlset struct {
 }
 
 type generator struct {
-	ctx       config.SiteContext
+	ctx       *config.SiteContext
 	converter converter
 	store     storage.Storage
 }
 
-func NewGenerator(ctx config.SiteContext, converter converter, store storage.Storage) *generator {
+func NewGenerator(ctx *config.SiteContext, converter converter, store storage.Storage) *generator {
 	return &generator{ctx: ctx, converter: converter, store: store}
 }
 
@@ -71,10 +71,10 @@ func (g *generator) Generate(metadata source.SiteMetadata) error {
 		}
 	}
 
-	if g.ctx.GeneratePostMetadata && len(metadata.ContentManifest) > 0 {
+	if g.ctx.MakePostMetadata && len(metadata.ContentManifest) > 0 {
 		g.createMetadataFile(metadata.ContentManifest[_defaultPostsItem])
 	}
-	if g.ctx.GenerateSitemapXml && len(metadata.SiteMapUrlMetadata) > 0 {
+	if g.ctx.MakeSitemapXml && len(metadata.SiteMapUrlMetadata) > 0 {
 		g.createSitemapFile(metadata.SiteMapUrlMetadata)
 	}
 

@@ -79,11 +79,11 @@ type ContentMetadata struct {
 }
 
 type metadata struct {
-	ctx   config.SiteContext
+	ctx   *config.SiteContext
 	store storage.Storage
 }
 
-func NewMetadata(ctx config.SiteContext, store storage.Storage) *metadata {
+func NewMetadata(ctx *config.SiteContext, store storage.Storage) *metadata {
 	return &metadata{ctx: ctx, store: store}
 }
 
@@ -161,7 +161,7 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 
 		metadata.SiteContentEntities = append(metadata.SiteContentEntities, content)
 
-		if m.ctx.GenerateSitemapXml {
+		if m.ctx.MakeSitemapXml {
 			xmlUrl := makeSitemapEntry(m.ctx, content)
 			metadata.SiteMapUrlMetadata = append(metadata.SiteMapUrlMetadata, xmlUrl)
 		}
@@ -170,7 +170,7 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 	})
 }
 
-func makeSitemapEntry(ctx config.SiteContext, ce *ContentEntity) SitemapUrl {
+func makeSitemapEntry(ctx *config.SiteContext, ce *ContentEntity) SitemapUrl {
 	siteUrl, _ := url.Parse(ctx.SiteUrl)
 	if ctx.FullHtmlPath {
 		siteUrl.Path = path.Join(siteUrl.Path, ce.OutPath)

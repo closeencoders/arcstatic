@@ -93,7 +93,7 @@ func TestLoadConfig(t *testing.T) {
 
 func TestLoadMetadata(t *testing.T) {
 
-	ctx := newDefaultContext("public")
+	ctx := createDefaultContext("public")
 	ctx.SiteRoot = "public"
 	ctx.PostInputDir = "fakepostloc"
 	ctx.PageInputDir = "fakepageloc"
