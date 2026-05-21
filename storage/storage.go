@@ -1,15 +1,12 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 )
-
-var errTraversalUnsupported = errors.New("traversal (..) is not allowed")
 
 type Storage interface {
 	fs.FS
@@ -39,7 +36,7 @@ func (osFileStorage) Write(name string, data []byte, perm int) error {
 func (osFileStorage) Mkdir(perm int, path ...string) (string, error) {
 	loc := filepath.Join(path...)
 	if strings.HasPrefix(loc, "..") {
-		return loc, fmt.Errorf("directory not created: %w", errTraversalUnsupported)
+		return loc, fmt.Errorf("traversal (..) is not allowed %s", loc)
 	}
 	err := os.MkdirAll(loc, os.FileMode(perm))
 	if err != nil {

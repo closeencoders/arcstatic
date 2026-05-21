@@ -8,17 +8,16 @@ Arcstatic is a simple static site generator practice/learning project. While not
 
 ## Example Commands
 ```
-Usage of arcstatic:
-  -build
-        Builds static site from provided resources. Defaults to current worked directory.
-  -in string
-        Static site context input location. Defaults to current worked directory.
-  -port int
-        location to file serve. If the serve command is not used, this is ignored (default 8000)
-  -serve
-        Serve static site from provided resources for testing. Defaults to current worked directory.
-  -verbose
-        run verbose
+Usage:
+  arcstatic [flags]
+
+Flags:
+  -b, --build       builds static site from provided resources
+  -h, --help        help for arcstatic
+  -i, --in string   override default site context current working directory input location (default "/home/joz/Working/projects/go/arcstatic")
+  -p, --port int    port number to file serve the site, if the serve command is not used, this is ignored (default 8000)
+  -s, --serve       serve static site from provided resources, currently only for testing
+  -v, --verbose     run verbose with debug logs
 ```
 
 ## Example Feed
@@ -57,7 +56,4 @@ post_input_dir: /override/input/post/location
 site_url: https://yourdomain.com
 
 make_toc: true
-
-# type --> category --> tag
-default_type: blog
 ```
