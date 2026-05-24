@@ -6,6 +6,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/closeencoders/arcstatic/config"
 	"github.com/closeencoders/arcstatic/storage"
 )
 
@@ -195,4 +196,50 @@ func AssertEqual(t *testing.T, msg string, got, want any) {
 	if got != want {
 		t.Errorf("%s:\nGot:[%v]\nWnt:[%v]", msg, got, want)
 	}
+}
+
+func TestSiteManifest(t *testing.T) {
+
+	ctx := config.NewContext("testlocation")
+	tests := []struct {
+		name      string
+		Ce        ContentEntity
+		wantTypes []string
+	}{
+		{
+			name: "No Type Is Set, Should Still Have Default Collection",
+			Ce: ContentEntity{
+				Name:            "test",
+				ContentMetadata: ContentMetadata{},
+			},
+			wantTypes: []string{"Posts"},
+		},
+		{
+			name: "Type Is Set, Should Have Default Collection And Defined Type",
+			Ce: ContentEntity{
+				Name: "test",
+				ContentMetadata: ContentMetadata{
+					Type: "Blogs",
+				},
+			},
+			wantTypes: []string{"Blogs", "Posts"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manifest := NewManifest(*ctx, []*ContentEntity{&tt.Ce})
+
+			if len(tt.wantTypes) > 0 {
+				for _, expectedType := range tt.wantTypes {
+					_, exists := manifest[expectedType]
+					if !exists {
+						t.Errorf("Expected manifest to have type of: %s", expectedType)
+					}
+				}
+			}
+
+		})
+	}
+
 }

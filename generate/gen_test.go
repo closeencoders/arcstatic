@@ -22,7 +22,7 @@ func TestConvertToContent(t *testing.T) {
 
 	rawFile := []byte("blah blah blah")
 	metadata := source.ContentEntity{}
-	manifest := source.ContentManifest{}
+	manifest := source.Manifest{}
 
 	content, err := conv.ConvertToContent(rawFile, &metadata, manifest)
 	if err != nil {

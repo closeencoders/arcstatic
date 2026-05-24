@@ -29,8 +29,6 @@ const (
 	_defaultPageTemplate = "page.html"
 )
 
-type ContentManifest map[string][]*ContentMetadata
-
 type SitemapUrl struct {
 	Loc     string `xml:"loc"`
 	LastMod string `xml:"lastmod,omitempty"`
@@ -40,7 +38,7 @@ type SiteMetadata struct {
 	// content entity struct to hold all original content metadata loaded from source material until I find a better pattern
 	SiteContentEntities []*ContentEntity
 	// Represent the state of every categorized set of metadata
-	ContentManifest ContentManifest
+	ContentManifest Manifest
 	// Used for creating xml representations for the site for search engines, like a sitemap.xml
 	SiteMapUrlMetadata []SitemapUrl
 }
@@ -99,29 +97,7 @@ func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 		return b.ContentMetadata.Date.Compare(a.ContentMetadata.Date)
 	})
 
-	// TODO: maintain hierarchy and flatten appropriately
-	manifest := ContentManifest{}
-	for _, ce := range metadata.SiteContentEntities {
-
-		fm := &ce.ContentMetadata
-		id := strings.TrimSpace(fm.TemplateId)
-
-		if id == _defaultPostTemplate || (id == "" && m.ctx.PostInputDir == ce.InPath) {
-
-			if fm.Type == "" {
-				if m.ctx.DefaultType != "" {
-					manifest[m.ctx.DefaultType] = append(manifest[m.ctx.DefaultType], fm)
-				}
-			} else {
-				manifest[fm.Type] = append(manifest[fm.Type], fm)
-			}
-
-			manifest[_defaultPostsItem] = append(manifest[_defaultPostsItem], fm)
-			manifest = renderTypes(fm, manifest, fm.Tags...)
-			manifest = renderTypes(fm, manifest, fm.Categories...)
-		}
-	}
-	metadata.ContentManifest = manifest
+	metadata.ContentManifest = NewManifest(*m.ctx, metadata.SiteContentEntities)
 
 	return &metadata, nil
 }
@@ -250,20 +226,6 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, contentR
 	ce.ContentMetadata.Url = ce.RelativePath
 
 	return &ce, nil
-}
-
-func renderTypes(fm *ContentMetadata, data map[string][]*ContentMetadata, types ...string) map[string][]*ContentMetadata {
-	if len(types) == 0 {
-		return data
-	}
-	for _, id := range types {
-		id = strings.TrimSpace(id)
-		if id == "" || id == _defaultPostsItem {
-			continue
-		}
-		data[id] = append(data[id], fm)
-	}
-	return data
 }
 
 func extractDescription(fm ContentMetadata, body []byte) string {

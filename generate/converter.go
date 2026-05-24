@@ -22,7 +22,7 @@ func NewConverter(ctx *config.SiteContext, markdown Markdown, templater template
 	return &converter{ctx: ctx, markdown: markdown, templater: templater}
 }
 
-func (c *converter) ConvertToContent(rawFile []byte, content *source.ContentEntity, manifest source.ContentManifest) ([]byte, error) {
+func (c *converter) ConvertToContent(rawFile []byte, content *source.ContentEntity, manifest source.Manifest) ([]byte, error) {
 
 	_, body, err := source.SplitFileContent(rawFile, c.ctx.FrontmatterToken)
 	if err != nil {
