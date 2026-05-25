@@ -15,18 +15,19 @@ type SiteContext struct {
 
 	// FrontmatterToken marks the boundary of configuration blocks in source files (e.g., "---" or "+++").
 	FrontmatterToken string `yaml:"frontmatter_token"`
-
 	// PostInputDir is the absolute path to the raw posts folder, decoupled from output locations.
 	PostInputDir string `yaml:"post_input_dir"`
-
 	// PostOutputDir is the path to write compiled posts, relative to the SiteRoot.
 	PostOutputDir string `yaml:"post_output_dir"`
-
 	// TODO:
 	PageInputDir string
 
+	// If set to true, will use a full path to the html file (e.g. /blah/content.html)
+	FullHtmlPaths bool `yaml:"full_html_paths"`
+
+	MaxDescriptionLen int `yaml:"max_description_len"`
+
 	// TODO: Isolation to individual content preferences
-	FullHtmlPath        bool
 	MakePostMetadata    bool `yaml:"make_post_metadata"`
 	MakeSitemapXML      bool `yaml:"make_sitemap"`
 	MakeTableOfContents bool `yaml:"make_toc"`
@@ -45,9 +46,11 @@ func NewContext(root string) *SiteContext {
 
 		FrontmatterToken: "---",
 
-		FullHtmlPath:        false,
-		MakeSitemapXML:      true,
-		MakePostMetadata:    true,
-		MakeTableOfContents: false,
+		MaxDescriptionLen: 156,
+
+		DefaultType: "Posts",
+
+		MakeSitemapXML:   true,
+		MakePostMetadata: true,
 	}
 }

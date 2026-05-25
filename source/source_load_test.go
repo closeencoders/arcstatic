@@ -3,6 +3,7 @@ package source
 import (
 	"io/fs"
 	"path"
+	"sync"
 	"testing"
 	"testing/fstest"
 
@@ -29,6 +30,8 @@ func (fs fakeStorage) Mkdir(perm int, path ...string) (string, error) {
 }
 
 func TestLoadConfig(t *testing.T) {
+
+	t.Parallel()
 
 	const baseDir = "testlocation"
 	defaultPostLoc := path.Join(baseDir, _postsLoc)
@@ -67,40 +70,38 @@ func TestLoadConfig(t *testing.T) {
 			wantDir: defaultPostLoc,
 		},
 		{
-			name:       "File Not Found Should Use Full Default",
+			name:       "Config File Not Found Should Use Full Default",
 			configFile: nil,
 			wantUrl:    _defaultUrl,
 			wantDir:    defaultPostLoc,
 		},
 	}
 
+	var wg sync.WaitGroup
+
 	for _, tt := range tests {
-		tc := tt
+		t.Run(tt.name, func(t *testing.T) {
 
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			wg.Add(1)
 
-			mockStore := fakeStorage{testFiles: tc.configFile}
+			mockStore := fakeStorage{testFiles: tt.configFile}
 			result, err := LoadSiteContext(baseDir, mockStore)
 
-			if err == nil && tc.wantErr {
-				t.Fatalf("LoadSiteContext() unexpected error state:\nGot: [%v]\nWanted: [%v]", err, tc.wantErr)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("unexpected error state while loading site context test: %v, wantErr: %v", err, tt.wantErr)
 			}
-			if tc.wantErr && err != nil {
+			if tt.wantErr {
 				return
 			}
-			AssertEqual(t, "SiteUrl", result.SiteURL, tc.wantUrl)
-			AssertEqual(t, "PostInputDir", result.PostInputDir, tc.wantDir)
+			AssertEqual(t, "SiteUrl", result.SiteURL, tt.wantUrl)
+			AssertEqual(t, "PostInputDir", result.PostInputDir, tt.wantDir)
 		})
 	}
 }
 
 func TestLoadMetadata(t *testing.T) {
 
-	ctx := createDefaultContext("public")
-	ctx.SiteRoot = "public"
-	ctx.PostInputDir = "fakepostloc"
-	ctx.PageInputDir = "fakepageloc"
+	t.Parallel()
 
 	tests := []struct {
 		name         string
@@ -109,12 +110,11 @@ func TestLoadMetadata(t *testing.T) {
 		wantTitle    string
 		wantPath     string
 		wantTemplate string
-		// Data is not valid or configured to not be loaded as content, but the process should continue
-		notLoaded bool
+		notLoaded    bool
 	}{
 		{
 			name: "Known Post Location Should Load",
-			path: ctx.PostInputDir,
+			path: "fakepostloc",
 			fileData: fstest.MapFS{
 				"fakepostloc/basic_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
 			},
@@ -124,7 +124,7 @@ func TestLoadMetadata(t *testing.T) {
 		},
 		{
 			name: "Known Post Location Should Load With Irregular Name",
-			path: ctx.PostInputDir,
+			path: "fakepostloc",
 			fileData: fstest.MapFS{
 				"fakepostloc/basic *&^(*&)  post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
 			},
@@ -134,7 +134,7 @@ func TestLoadMetadata(t *testing.T) {
 		},
 		{
 			name: "Known Page Location Should Load",
-			path: ctx.PageInputDir,
+			path: "fakepageloc",
 			fileData: fstest.MapFS{
 				"fakepageloc/about.html": &fstest.MapFile{Data: []byte("---\ntitle: About\n---\n# Header")},
 			},
@@ -143,8 +143,16 @@ func TestLoadMetadata(t *testing.T) {
 			wantTemplate: "page.html",
 		},
 		{
+			name: "Unknown File Extension Should Not Load Or Attempt To Load Anything",
+			path: "fakepageloc",
+			fileData: fstest.MapFS{
+				"fakepostloc/about.xyz": &fstest.MapFile{Data: []byte("---\ntitle: About\n---\n# Header")},
+			},
+			notLoaded: true,
+		},
+		{
 			name: "Unknown Location Should Not Load Or Attempt To Load Anything",
-			path: ctx.PageInputDir,
+			path: "fakepageloc",
 			fileData: fstest.MapFS{
 				"xxxxxx/about.html": &fstest.MapFile{Data: []byte("---\ntitle: About\n---\n# Header")},
 			},
@@ -152,7 +160,7 @@ func TestLoadMetadata(t *testing.T) {
 		},
 		{
 			name: "Draft Post Should Not Load When Set To True",
-			path: ctx.PostInputDir,
+			path: "fakepostloc",
 			fileData: fstest.MapFS{
 				"fakepostloc/draft_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\ndraft: true\n---\n# Header")},
 			},
@@ -160,51 +168,51 @@ func TestLoadMetadata(t *testing.T) {
 		},
 	}
 
+	var wg sync.WaitGroup
+
 	for _, tt := range tests {
-		tc := tt
+		t.Run(tt.name, func(t *testing.T) {
 
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			wg.Add(1)
 
-			mockStore := fakeStorage{testFiles: tc.fileData}
+			ctx := createDefaultContext("public")
+			ctx.PostInputDir = "fakepostloc"
+			ctx.PageInputDir = "fakepageloc"
+
+			mockStore := fakeStorage{testFiles: tt.fileData}
 			ml := metadata{ctx: ctx, store: mockStore}
-			result, err := ml.LoadMetadata(tc.path)
+			result, err := ml.LoadMetadata(tt.path)
 			if err != nil {
 				t.Fatalf("LoadMetadata() execution unexpected error = %v", err)
 			}
 
 			entitiesCount := len(result.SiteContentEntities)
-			if tc.notLoaded {
+			if tt.notLoaded {
 				if entitiesCount != 0 {
 					t.Fatalf("expected 0 entities loaded, got %d", entitiesCount)
 				}
 				return
 			}
 			if entitiesCount == 0 {
-				t.Fatalf("metadata should have been loaded for target path: %q", tc.path)
+				t.Fatalf("metadata should have been loaded for target path: %q", tt.path)
 			}
 
 			ce := result.SiteContentEntities[0]
-			AssertEqual(t, "template", ce.ContentMetadata.TemplateId, tc.wantTemplate)
-			AssertEqual(t, "title", ce.ContentMetadata.Title, tc.wantTitle)
+			AssertEqual(t, "template", ce.ContentMetadata.TemplateId, tt.wantTemplate)
+			AssertEqual(t, "title", ce.ContentMetadata.Title, tt.wantTitle)
 		})
-	}
-}
-
-func AssertEqual(t *testing.T, msg string, got, want any) {
-	t.Helper()
-	if got != want {
-		t.Errorf("%s:\nGot:[%v]\nWnt:[%v]", msg, got, want)
 	}
 }
 
 func TestSiteManifest(t *testing.T) {
 
-	ctx := config.NewContext("testlocation")
+	t.Parallel()
+
 	tests := []struct {
-		name      string
-		Ce        ContentEntity
-		wantTypes []string
+		name                string
+		Ce                  ContentEntity
+		wantTypes           []string
+		DefaultTypeOverride string
 	}{
 		{
 			name: "No Type Is Set, Should Still Have Default Collection",
@@ -217,17 +225,36 @@ func TestSiteManifest(t *testing.T) {
 		{
 			name: "Type Is Set, Should Have Default Collection And Defined Type",
 			Ce: ContentEntity{
+				Name:            "test",
+				ContentMetadata: ContentMetadata{Type: "Blogs"},
+			},
+			wantTypes: []string{"Blogs", "Posts"},
+		},
+		{
+			name: "Overridden Default Content Type Should Be Returned",
+			Ce: ContentEntity{
 				Name: "test",
 				ContentMetadata: ContentMetadata{
 					Type: "Blogs",
 				},
 			},
-			wantTypes: []string{"Blogs", "Posts"},
+			DefaultTypeOverride: "Other",
+			wantTypes:           []string{"Blogs", "Other"},
 		},
 	}
 
+	var wg sync.WaitGroup
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
+			wg.Add(1)
+
+			ctx := config.NewContext("testlocation")
+			if tt.DefaultTypeOverride != "" {
+				ctx.DefaultType = tt.DefaultTypeOverride
+			}
+
 			manifest := NewManifest(*ctx, []*ContentEntity{&tt.Ce})
 
 			if len(tt.wantTypes) > 0 {
@@ -238,8 +265,13 @@ func TestSiteManifest(t *testing.T) {
 					}
 				}
 			}
-
 		})
 	}
+}
 
+func AssertEqual(t *testing.T, msg string, got, want any) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s:\nGot:[%v]\nWnt:[%v]", msg, got, want)
+	}
 }

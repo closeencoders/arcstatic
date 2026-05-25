@@ -15,7 +15,6 @@ import (
 
 const (
 	_defaultFilePerm   = 0755
-	_defaultPostsItem  = "Posts"
 	_postsMetadataFile = "data/posts.json"
 	_sitemapXmlFile    = "sitemap.xml"
 	_sitemapXmlMeta    = "http://www.sitemaps.org/schemas/sitemap/0.9"
@@ -46,7 +45,7 @@ func (g *generator) Generate(metadata source.SiteMetadata) error {
 
 	for _, ce := range metadata.SiteContentEntities {
 
-		fileData, err := storage.LoadSiteFile(ce.InPath, g.store)
+		fileData, err := storage.LoadSiteFile(ce.InputDir, g.store)
 		if err != nil {
 			slog.Warn("unable to create file, relative path is invalid %s, %w", ce.RelativePath, err)
 			continue
@@ -71,7 +70,7 @@ func (g *generator) Generate(metadata source.SiteMetadata) error {
 	}
 
 	if g.ctx.MakePostMetadata && len(metadata.ContentManifest) > 0 {
-		g.createMetadataFile(metadata.ContentManifest[_defaultPostsItem])
+		g.createMetadataFile(metadata.ContentManifest[g.ctx.DefaultType])
 	}
 	if g.ctx.MakeSitemapXML && len(metadata.SiteMapUrlMetadata) > 0 {
 		g.createSitemapFile(metadata.SiteMapUrlMetadata)
@@ -102,13 +101,13 @@ func (g *generator) createSitemapFile(urls []source.SitemapUrl) {
 	}
 }
 
-func (g *generator) createMetadataFile(siteMetadata []*source.ContentMetadata) {
+func (g *generator) createMetadataFile(contentMetadata []*source.ContentMetadata) {
 
 	// TODO: handle err appropriately
 	g.store.Mkdir(_defaultFilePerm, g.ctx.SiteRoot, "data")
 	postMetadataPath := filepath.Join(g.ctx.SiteRoot, _postsMetadataFile)
 
-	data, err := json.Marshal(siteMetadata)
+	data, err := json.Marshal(contentMetadata)
 	if err != nil {
 		slog.Error("failed to Marshal metadata file", "file", _postsMetadataFile, "error", err)
 		return

@@ -35,7 +35,7 @@ func LoadSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 
 	slog.Debug("config loaded", "config", ctx)
 
-	// TODO: Embedded defaults/themes with correct error handling
+	// TODO: Embedded defaults/themes
 	componentsPath := filepath.Join(path, _componentsLoc)
 	componentsMap, err := storage.LoadFilesToMap(componentsPath, store)
 	if err != nil {

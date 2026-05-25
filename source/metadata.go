@@ -19,12 +19,10 @@ import (
 )
 
 const (
-	_indexHtmlFile             = "index.html"
-	_maxInputSize              = 1_000_000
-	_defaultMaxDescriptionSize = 156
-	_YYYYMMDD_RFC3339          = "2006-01-02T15:04:05Z07:00"
+	_indexHtmlFile    = "index.html"
+	_maxInputSize     = 1_000_000
+	_YYYYMMDD_RFC3339 = "2006-01-02T15:04:05Z07:00"
 
-	_defaultPostsItem    = "Posts"
 	_defaultPostTemplate = "post.html"
 	_defaultPageTemplate = "page.html"
 )
@@ -52,7 +50,7 @@ type ContentEntity struct {
 	// Full path to file with rendered content
 	OutPath string
 	// Full path to original content to be rendered
-	InPath string
+	InputDir string
 }
 
 // TODO: This should be more dynamic
@@ -98,7 +96,6 @@ func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 	})
 
 	metadata.ContentManifest = NewManifest(*m.ctx, metadata.SiteContentEntities)
-
 	return &metadata, nil
 }
 
@@ -115,12 +112,12 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 		if err != nil {
 			return fmt.Errorf("failed to load file data: %w", err)
 		}
-		if fileData.Extension != ".md" && fileData.Extension != ".html" {
-			fmt.Print(fileData.Name)
-			return nil
-		}
 		if len(fileData.Data) < 3 {
 			slog.Debug("no file data viable for conversion found", "dir", dirEntry, "path", root)
+			return nil
+		}
+		if !storage.SupportedContentFile(fileData.Extension) {
+			slog.Debug("unsupported content file extension", "path", path)
 			return nil
 		}
 
@@ -128,7 +125,7 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 		if err != nil {
 			return fmt.Errorf("failed to convert to content: %w", err)
 		}
-		content.InPath = path
+		content.InputDir = path
 
 		if content.ContentMetadata.Draft {
 			slog.Debug("is draft", "file", path)
@@ -138,33 +135,30 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 		metadata.SiteContentEntities = append(metadata.SiteContentEntities, content)
 
 		if m.ctx.MakeSitemapXML {
-			xmlUrl := makeSitemapEntry(m.ctx, content)
+			xmlUrl := m.makeSitemapEntry(content)
 			metadata.SiteMapUrlMetadata = append(metadata.SiteMapUrlMetadata, xmlUrl)
 		}
-
 		return err
 	})
 }
 
-func makeSitemapEntry(ctx *config.SiteContext, ce *ContentEntity) SitemapUrl {
-	siteUrl, _ := url.Parse(ctx.SiteURL)
-	if ctx.FullHtmlPath {
+func (m *metadata) makeSitemapEntry(ce *ContentEntity) SitemapUrl {
+	// TODO:
+	siteUrl, _ := url.Parse(m.ctx.SiteURL)
+	if m.ctx.FullHtmlPaths {
 		siteUrl.Path = path.Join(siteUrl.Path, ce.OutPath)
 	} else {
 		siteUrl.Path = path.Join(siteUrl.Path, ce.RelativePath)
 	}
-	loc := siteUrl.String()
 
 	xmlDate := ce.ContentMetadata.Date
 	if xmlDate.IsZero() {
 		xmlDate = time.Now()
 	}
-
 	xmlUrl := SitemapUrl{
-		Loc:     loc,
+		Loc:     siteUrl.String(),
 		LastMod: xmlDate.Format(_YYYYMMDD_RFC3339),
 	}
-	slog.Debug("sitemap", "url", xmlUrl, "site", ctx.SiteURL)
 	return xmlUrl
 }
 
@@ -182,7 +176,7 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, contentR
 	if err != nil {
 		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileName)
 	}
-	frontmatter.Description = extractDescription(frontmatter, bodyData)
+	frontmatter.Description = m.extractDescription(frontmatter, bodyData)
 
 	fullFileName := strings.ReplaceAll(strings.ToLower(fileName), " ", "-")
 	ce := ContentEntity{
@@ -203,7 +197,7 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, contentR
 		}
 	}
 
-	usePrettyUrl := !m.ctx.FullHtmlPath && fullFileName != _indexHtmlFile
+	usePrettyUrl := !m.ctx.FullHtmlPaths && fullFileName != _indexHtmlFile
 	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
 	if usePrettyUrl {
 		if usePermalink {
@@ -224,16 +218,15 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, contentR
 	}
 
 	ce.ContentMetadata.Url = ce.RelativePath
-
 	return &ce, nil
 }
 
-func extractDescription(fm ContentMetadata, body []byte) string {
+func (m *metadata) extractDescription(fm ContentMetadata, body []byte) string {
 	desc := strings.TrimSpace(fm.Description)
 	if desc == "" {
-		desc = truncateBytes(body, _defaultMaxDescriptionSize)
-	} else if len(desc) > _defaultMaxDescriptionSize {
-		desc = truncateBytes([]byte(desc), _defaultMaxDescriptionSize)
+		desc = truncateBytes(body, m.ctx.MaxDescriptionLen)
+	} else if len(desc) > m.ctx.MaxDescriptionLen {
+		desc = truncateBytes([]byte(desc), m.ctx.MaxDescriptionLen)
 	}
 	return desc
 }

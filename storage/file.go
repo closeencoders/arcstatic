@@ -9,12 +9,38 @@ import (
 	"strings"
 )
 
-var errUnsupported = errors.New("unsupported file extension")
+var (
+	errUnsupported = errors.New("unsupported file extension")
+
+	supportedContentTypes  = map[string]struct{}{".md": {}, ".markdown": {}, ".html": {}, ".htm": {}}
+	supportedDataFileTypes = map[string]struct{}{".json": {}, ".xml": {}, ".yml": {}, ".yaml": {}}
+)
 
 type FileData struct {
 	Name      string
 	Extension string
 	Data      []byte
+}
+
+func SupportedContentFile(path string) bool {
+	return hasExtension(path, supportedContentTypes)
+}
+
+func SupportedFile(path string) bool {
+	return hasExtension(path, supportedDataFileTypes, supportedContentTypes)
+}
+
+func hasExtension(path string, targetMaps ...map[string]struct{}) bool {
+	ext := filepath.Ext(path)
+	if ext == "" || ext == "." || len(targetMaps) == 0 {
+		return false
+	}
+	for _, t := range targetMaps {
+		if _, exists := t[strings.ToLower(ext)]; exists {
+			return true
+		}
+	}
+	return false
 }
 
 func LoadFilesToMap(root string, fsys fs.FS) (map[string][]byte, error) {
@@ -46,18 +72,15 @@ func LoadFilesToMap(root string, fsys fs.FS) (map[string][]byte, error) {
 
 func LoadSiteFile(path string, fsys fs.FS) (FileData, error) {
 
-	ext := strings.ToLower(filepath.Ext(path))
-	switch ext {
-	// TODO: This is dumb
-	case ".md", ".markdown", ".html", ".htm", ".txt", ".yml":
-		data, err := fs.ReadFile(fsys, path)
-		if err != nil {
-			return FileData{}, fmt.Errorf("failed to load site file %s: %w", path, err)
-		}
-
-		return FileData{Extension: ext, Data: data}, nil
-	default:
+	if !SupportedFile(path) {
 		slog.Debug("unsupported file extension", "path", path)
 		return FileData{}, errUnsupported
 	}
+
+	data, err := fs.ReadFile(fsys, path)
+	if err != nil {
+		return FileData{}, fmt.Errorf("failed to load site file %s: %w", path, err)
+	}
+
+	return FileData{Extension: filepath.Ext(path), Data: data}, nil
 }
