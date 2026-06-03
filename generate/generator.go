@@ -45,7 +45,7 @@ func (g *generator) Generate(metadata source.SiteMetadata) error {
 
 	for _, ce := range metadata.SiteContentEntities {
 
-		fileData, err := storage.LoadSiteFile(ce.InputDir, g.store)
+		fileData, err := storage.LoadSiteFile(ce.InputPath, g.store)
 		if err != nil {
 			slog.Warn("unable to create file, relative path is invalid %s, %w", ce.RelativePath, err)
 			continue
@@ -55,13 +55,13 @@ func (g *generator) Generate(metadata source.SiteMetadata) error {
 		if err != nil {
 			return fmt.Errorf("unable to make new dir for content: %w", err)
 		}
-		content, err := g.converter.ConvertToContent(fileData.Data, ce, metadata.ContentManifest)
+		content, err := g.converter.ToContent(fileData.Data, ce, metadata.ContentManifest)
 		if err != nil {
 			return fmt.Errorf("unable to convert to content: %w", err)
 		}
 
 		// write content to site
-		outPath := filepath.Join(g.ctx.SiteRoot, ce.OutPath)
+		outPath := filepath.Join(g.ctx.SiteRoot, ce.OutputPath)
 		slog.Debug("Writing content", "path", outPath)
 		err = g.store.Write(outPath, content, _defaultFilePerm)
 		if err != nil {

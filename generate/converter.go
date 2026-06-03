@@ -22,11 +22,11 @@ func NewConverter(ctx *config.SiteContext, markdown Markdown, templater template
 	return &converter{ctx: ctx, markdown: markdown, templater: templater}
 }
 
-func (c *converter) ConvertToContent(rawFile []byte, content *source.ContentEntity, manifest source.Manifest) ([]byte, error) {
+func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, manifest source.Manifest) ([]byte, error) {
 
 	_, body, err := source.SplitFileContent(rawFile, c.ctx.FrontmatterToken)
 	if err != nil {
-		slog.Warn("unable to extract frontmatter, continuing with defaults", "name", content.Name, "err", err)
+		slog.Warn("unable to extract frontmatter, continuing with defaults", "name", content.FileName, "err", err)
 	}
 
 	canonicalUrl, _ := url.Parse(c.ctx.SiteURL)
@@ -40,11 +40,11 @@ func (c *converter) ConvertToContent(rawFile []byte, content *source.ContentEnti
 	}
 
 	// TODO: Type detection should happen in the source phase
-	fileExt := strings.ToLower(filepath.Ext(content.Name))
+	fileExt := strings.ToLower(filepath.Ext(content.FileName))
 	if fileExt == ".md" {
-		htmlResult, err := c.markdown.ConvertToHtml(body)
+		htmlResult, err := c.markdown.ToHtml(body)
 		if err != nil {
-			return body, fmt.Errorf("markdown conversion for %s failed: %w", content.Name, err)
+			return body, fmt.Errorf("markdown conversion for %s failed: %w", content.FileName, err)
 		}
 		body = htmlResult.HTML
 		renderMap["TOC"] = string(htmlResult.TOC)
@@ -60,7 +60,7 @@ func (c *converter) ConvertToContent(rawFile []byte, content *source.ContentEnti
 	templateStr := string(c.ctx.TemplateMap[templateId])
 	body, err = c.templater.Render(renderMap, templateStr)
 	if err != nil {
-		return body, fmt.Errorf("unable to render body with template %s for entity %s: %w", templateId, content.Name, err)
+		return body, fmt.Errorf("unable to render body with template %s for entity %s: %w", templateId, content.FileName, err)
 	}
 
 	return body, nil

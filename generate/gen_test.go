@@ -1,34 +1,51 @@
 package generate
 
 import (
-	"log/slog"
 	"testing"
+	"testing/fstest"
 
 	"github.com/closeencoders/arcstatic/config"
+	"github.com/closeencoders/arcstatic/internal/testutil"
 	"github.com/closeencoders/arcstatic/source"
 )
 
-// TODO: also seeing if the test coverage can tell this test is useless or not.
+// TODO: seeing if the test coverage can tell this test is useless or not.
 func TestConvertToContent(t *testing.T) {
 
-	ctx := config.NewContext("testloc")
+	t.Parallel()
 
-	temp, err := NewTemplater(ctx.ComponentMap, nil)
-	if err != nil {
-		t.Fatal("learning before refactoring")
+	tests := []struct {
+		name     string
+		ce       source.ContentEntity
+		manifest source.Manifest
+		rawFile  []byte
+	}{
+		{
+			name:    "Invalid data should not generate anything",
+			rawFile: []byte("blah blah blah"),
+		},
 	}
 
-	conv := NewConverter(ctx, *NewMarkdown(ctx), *temp)
+	for _, tt := range tests {
 
-	rawFile := []byte("blah blah blah")
-	metadata := source.ContentEntity{}
-	manifest := source.Manifest{}
+		ctx := config.NewContext("testloc")
+		temp, err := NewTemplater(ctx.ComponentMap, nil)
+		if err != nil {
+			t.Fatal("failed to load templater, invalid test configuration")
+		}
 
-	content, err := conv.ConvertToContent(rawFile, &metadata, manifest)
-	if err != nil {
-		t.Fatal("learning before refactoring")
+		conv := NewConverter(ctx, *NewMarkdown(ctx), *temp)
+		gen := NewGenerator(ctx, *conv, testutil.NewFakeStorage(fstest.MapFS{}))
+		metadata := source.SiteMetadata{
+			SiteContentEntities: []*source.ContentEntity{
+				&tt.ce,
+			},
+		}
+
+		err = gen.Generate(metadata)
+		if err != nil {
+			t.Fatal("learning before refactoring")
+		}
 	}
 
-	slog.Info("content", "content", content)
-	// fmt.Printf("content %v", content)
 }

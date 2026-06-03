@@ -41,7 +41,7 @@ func NewMarkdown(ctx *config.SiteContext) *Markdown {
 	return &Markdown{ctx: ctx, goldmark: gm}
 }
 
-func (m *Markdown) ConvertToHtml(content []byte) (*MarkdownResult, error) {
+func (m *Markdown) ToHtml(content []byte) (*MarkdownResult, error) {
 
 	var result MarkdownResult
 	docNode := m.goldmark.Parser().Parse(text.NewReader(content))

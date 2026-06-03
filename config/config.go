@@ -31,6 +31,16 @@ type SiteContext struct {
 	MakePostMetadata    bool `yaml:"make_post_metadata"`
 	MakeSitemapXML      bool `yaml:"make_sitemap"`
 	MakeTableOfContents bool `yaml:"make_toc"`
+
+	// TODO:
+	JsonLog bool `yaml:"Json_log"`
+	// TODO:
+	KeepDateUrl bool `yaml:"keep_date_url"`
+	// TODO:
+	AllowCustomTaxonomy bool `yaml:"allow_custom_taxonomy"`
+
+	// By default, content is given in date order by file name to improve performance. This flag allows this to be disabled at the cost of performance.
+	AllowNamelessDateSort bool `yaml:"allow_nameless_date_sort"`
 }
 
 // TODO: enforce access patterns based on when data is mutated.
@@ -52,5 +62,7 @@ func NewContext(root string) *SiteContext {
 
 		MakeSitemapXML:   true,
 		MakePostMetadata: true,
+
+		AllowNamelessDateSort: false,
 	}
 }

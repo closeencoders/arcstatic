@@ -31,6 +31,12 @@ func SupportedFile(path string) bool {
 }
 
 func hasExtension(path string, targetMaps ...map[string]struct{}) bool {
+
+	if len(path) < 3 {
+		slog.Debug("unsupported path length, must go to content file")
+		return false
+	}
+
 	ext := filepath.Ext(path)
 	if ext == "" || ext == "." || len(targetMaps) == 0 {
 		return false
@@ -44,10 +50,12 @@ func hasExtension(path string, targetMaps ...map[string]struct{}) bool {
 }
 
 func LoadFilesToMap(root string, fsys fs.FS) (map[string][]byte, error) {
+
 	fileMap := make(map[string][]byte)
 	slog.Debug("loading file data to map", "path", root)
 
 	err := fs.WalkDir(fsys, root, func(path string, entry fs.DirEntry, err error) error {
+
 		if err != nil {
 			return err
 		}
@@ -62,11 +70,9 @@ func LoadFilesToMap(root string, fsys fs.FS) (map[string][]byte, error) {
 		if err != nil {
 			return err
 		}
-
 		fileMap[entry.Name()] = fileData.Data
 		return nil
 	})
-
 	return fileMap, err
 }
 
@@ -81,6 +87,5 @@ func LoadSiteFile(path string, fsys fs.FS) (FileData, error) {
 	if err != nil {
 		return FileData{}, fmt.Errorf("failed to load site file %s: %w", path, err)
 	}
-
-	return FileData{Extension: filepath.Ext(path), Data: data}, nil
+	return FileData{Extension: filepath.Ext(path), Data: data, Name: filepath.Base(path)}, nil
 }

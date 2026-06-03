@@ -1,33 +1,13 @@
 package source
 
 import (
-	"io/fs"
 	"path"
 	"sync"
 	"testing"
 	"testing/fstest"
 
-	"github.com/closeencoders/arcstatic/config"
-	"github.com/closeencoders/arcstatic/storage"
+	"github.com/closeencoders/arcstatic/internal/testutil"
 )
-
-type fakeStorage struct {
-	testFiles fstest.MapFS
-}
-
-var _ storage.Storage = fakeStorage{}
-
-func (fs fakeStorage) Write(name string, data []byte, perm int) error {
-	return nil
-}
-
-func (fs fakeStorage) Open(name string) (fs.File, error) {
-	return fs.testFiles.Open(name)
-}
-
-func (fs fakeStorage) Mkdir(perm int, path ...string) (string, error) {
-	return "", nil
-}
 
 func TestLoadConfig(t *testing.T) {
 
@@ -84,7 +64,8 @@ func TestLoadConfig(t *testing.T) {
 
 			wg.Add(1)
 
-			mockStore := fakeStorage{testFiles: tt.configFile}
+			mockStore := testutil.NewFakeStorage(tt.configFile)
+
 			result, err := LoadSiteContext(baseDir, mockStore)
 
 			if (err != nil) != tt.wantErr {
@@ -93,12 +74,13 @@ func TestLoadConfig(t *testing.T) {
 			if tt.wantErr {
 				return
 			}
-			AssertEqual(t, "SiteUrl", result.SiteURL, tt.wantUrl)
-			AssertEqual(t, "PostInputDir", result.PostInputDir, tt.wantDir)
+			testutil.AssertEqual(t, "SiteUrl", result.SiteURL, tt.wantUrl)
+			testutil.AssertEqual(t, "PostInputDir", result.PostInputDir, tt.wantDir)
 		})
 	}
 }
 
+// TODO: Refactor to break test up into chunks of expected behavior
 func TestLoadMetadata(t *testing.T) {
 
 	t.Parallel()
@@ -110,13 +92,14 @@ func TestLoadMetadata(t *testing.T) {
 		wantTitle    string
 		wantPath     string
 		wantTemplate string
+		wantType     string
 		notLoaded    bool
 	}{
 		{
 			name: "Known Post Location Should Load",
 			path: "fakepostloc",
 			fileData: fstest.MapFS{
-				"fakepostloc/basic_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
+				"fakepostloc/2026-06-01-basic_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
 			},
 			wantTitle:    "Hello",
 			wantPath:     "basic-post",
@@ -126,11 +109,40 @@ func TestLoadMetadata(t *testing.T) {
 			name: "Known Post Location Should Load With Irregular Name",
 			path: "fakepostloc",
 			fileData: fstest.MapFS{
-				"fakepostloc/basic *&^(*&)  post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
+				"fakepostloc/2026-06-01-basic *&^(*&)  post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
 			},
 			wantTitle:    "Hello",
 			wantPath:     "basic-post",
 			wantTemplate: "post.html",
+		},
+		{
+			name: "Unknown File Extension Should Not Load Or Attempt To Load Anything",
+			path: "fakepageloc",
+			fileData: fstest.MapFS{
+				"fakepostloc/2026-06-01-about.xyz": &fstest.MapFile{Data: []byte("---\ntitle: About\n---\n# Header")},
+			},
+			notLoaded: true,
+		},
+		{
+			name: "Draft Post Should Not Load When Set To True",
+			path: "fakepostloc",
+			fileData: fstest.MapFS{
+				"fakepostloc/2026-06-01-draft_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\ndraft: true\n---\n# Header")},
+			},
+			notLoaded: true,
+		},
+		{
+			name: "Custom Taxonomy Post Should Use Custom Type",
+			path: "fakepostloc",
+			fileData: fstest.MapFS{
+				"fakepostloc/2026-06-01-other_type_post.md": &fstest.MapFile{
+					Data: []byte("---\ntitle: Custom Type\ntype: others\n---\n# Header"),
+				},
+			},
+			wantTitle:    "Custom Type",
+			wantPath:     "other-type-post",
+			wantTemplate: "post.html",
+			wantType:     "others",
 		},
 		{
 			name: "Known Page Location Should Load",
@@ -143,26 +155,10 @@ func TestLoadMetadata(t *testing.T) {
 			wantTemplate: "page.html",
 		},
 		{
-			name: "Unknown File Extension Should Not Load Or Attempt To Load Anything",
-			path: "fakepageloc",
-			fileData: fstest.MapFS{
-				"fakepostloc/about.xyz": &fstest.MapFile{Data: []byte("---\ntitle: About\n---\n# Header")},
-			},
-			notLoaded: true,
-		},
-		{
-			name: "Unknown Location Should Not Load Or Attempt To Load Anything",
+			name: "Unknown Page Location Should Not Load Or Attempt To Load Anything",
 			path: "fakepageloc",
 			fileData: fstest.MapFS{
 				"xxxxxx/about.html": &fstest.MapFile{Data: []byte("---\ntitle: About\n---\n# Header")},
-			},
-			notLoaded: true,
-		},
-		{
-			name: "Draft Post Should Not Load When Set To True",
-			path: "fakepostloc",
-			fileData: fstest.MapFS{
-				"fakepostloc/draft_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\ndraft: true\n---\n# Header")},
 			},
 			notLoaded: true,
 		},
@@ -179,8 +175,9 @@ func TestLoadMetadata(t *testing.T) {
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
 
-			mockStore := fakeStorage{testFiles: tt.fileData}
-			ml := metadata{ctx: ctx, store: mockStore}
+			fs := testutil.NewFakeStorage(tt.fileData)
+			ml := metadata{ctx: ctx, store: fs}
+
 			result, err := ml.LoadMetadata(tt.path)
 			if err != nil {
 				t.Fatalf("LoadMetadata() execution unexpected error = %v", err)
@@ -198,80 +195,15 @@ func TestLoadMetadata(t *testing.T) {
 			}
 
 			ce := result.SiteContentEntities[0]
-			AssertEqual(t, "template", ce.ContentMetadata.TemplateId, tt.wantTemplate)
-			AssertEqual(t, "title", ce.ContentMetadata.Title, tt.wantTitle)
-		})
-	}
-}
-
-func TestSiteManifest(t *testing.T) {
-
-	t.Parallel()
-
-	tests := []struct {
-		name                string
-		Ce                  ContentEntity
-		wantTypes           []string
-		DefaultTypeOverride string
-	}{
-		{
-			name: "No Type Is Set, Should Still Have Default Collection",
-			Ce: ContentEntity{
-				Name:            "test",
-				ContentMetadata: ContentMetadata{},
-			},
-			wantTypes: []string{"Posts"},
-		},
-		{
-			name: "Type Is Set, Should Have Default Collection And Defined Type",
-			Ce: ContentEntity{
-				Name:            "test",
-				ContentMetadata: ContentMetadata{Type: "Blogs"},
-			},
-			wantTypes: []string{"Blogs", "Posts"},
-		},
-		{
-			name: "Overridden Default Content Type Should Be Returned",
-			Ce: ContentEntity{
-				Name: "test",
-				ContentMetadata: ContentMetadata{
-					Type: "Blogs",
-				},
-			},
-			DefaultTypeOverride: "Other",
-			wantTypes:           []string{"Blogs", "Other"},
-		},
-	}
-
-	var wg sync.WaitGroup
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			wg.Add(1)
-
-			ctx := config.NewContext("testlocation")
-			if tt.DefaultTypeOverride != "" {
-				ctx.DefaultType = tt.DefaultTypeOverride
-			}
-
-			manifest := NewManifest(*ctx, []*ContentEntity{&tt.Ce})
-
-			if len(tt.wantTypes) > 0 {
-				for _, expectedType := range tt.wantTypes {
-					_, exists := manifest[expectedType]
-					if !exists {
-						t.Errorf("Expected manifest to have type of: %s", expectedType)
-					}
+			if ce.InputPath == ctx.PostInputDir {
+				if ce.ContentMetadata.Type == "" {
+					testutil.AssertEqual(t, "type should have defaulted", ce.ContentMetadata.Type, ctx.DefaultType)
+				} else {
+					testutil.AssertEqual(t, "type", ce.ContentMetadata.Type, tt.wantType)
 				}
 			}
+			testutil.AssertEqual(t, "template", ce.ContentMetadata.TemplateId, tt.wantTemplate)
+			testutil.AssertEqual(t, "title", ce.ContentMetadata.Title, tt.wantTitle)
 		})
-	}
-}
-
-func AssertEqual(t *testing.T, msg string, got, want any) {
-	t.Helper()
-	if got != want {
-		t.Errorf("%s:\nGot:[%v]\nWnt:[%v]", msg, got, want)
 	}
 }

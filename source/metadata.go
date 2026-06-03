@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -27,30 +28,39 @@ const (
 	_defaultPageTemplate = "page.html"
 )
 
+var (
+	isoDateRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
+)
+
 type SitemapUrl struct {
 	Loc     string `xml:"loc"`
 	LastMod string `xml:"lastmod,omitempty"`
 }
 
+type Manifest map[string][]*ContentMetadata
+
 type SiteMetadata struct {
 	// content entity struct to hold all original content metadata loaded from source material until I find a better pattern
 	SiteContentEntities []*ContentEntity
-	// Represent the state of every categorized set of metadata
+	// Represent the state of every categorized content file without holding the entire file in memory
 	ContentManifest Manifest
 	// Used for creating xml representations for the site for search engines, like a sitemap.xml
 	SiteMapUrlMetadata []SitemapUrl
 }
 
 type ContentEntity struct {
-	Name string
+	// OG file name: "2006-01-02-some_post.md"
+	FileName string
+	// Modified name that will be exported: "some-post"
+	ArtificialFileName string
 	// Data extracted via a header or similar from a content file
 	ContentMetadata ContentMetadata
-	// Sub-path from root to the content. e.g. /posts/
+	// Sub-path from root to the content: /posts/
 	RelativePath string
-	// Full path to file with rendered content
-	OutPath string
-	// Full path to original content to be rendered
-	InputDir string
+	// Full path to file with rendered content: pcroot/siteroot/posts/some-post.html
+	OutputPath string
+	// Full path to original content file to be rendered:  pcroot/siteroot/posts/2006-01-02-some-post.md
+	InputPath string
 }
 
 // TODO: This should be more dynamic
@@ -86,67 +96,167 @@ func NewMetadata(ctx *config.SiteContext, store storage.Storage) *metadata {
 func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 
 	var metadata SiteMetadata
+	metadata.ContentManifest = Manifest{}
 	for _, loc := range paths {
 		if err := m.readSiteMetadataFiles(loc, &metadata); err != nil {
-			return &metadata, fmt.Errorf("failed to load metadata for %s: %w", loc, err)
+			return nil, fmt.Errorf("failed to load metadata for %s: %w", loc, err)
 		}
 	}
-	slices.SortFunc(metadata.SiteContentEntities, func(a, b *ContentEntity) int {
-		return b.ContentMetadata.Date.Compare(a.ContentMetadata.Date)
-	})
 
-	metadata.ContentManifest = NewManifest(*m.ctx, metadata.SiteContentEntities)
+	if m.ctx.AllowNamelessDateSort {
+		slog.Debug("sorting content by date")
+		slices.SortFunc(metadata.SiteContentEntities, func(a, b *ContentEntity) int {
+			return b.ContentMetadata.Date.Compare(a.ContentMetadata.Date)
+		})
+	}
+
 	return &metadata, nil
 }
 
 func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) error {
 
-	slog.Debug("rendering content", "path", root)
-	return fs.WalkDir(m.store, root, func(path string, dirEntry os.DirEntry, err error) error {
+	return fs.WalkDir(m.store, root, func(path string, dir os.DirEntry, err error) error {
 
-		if dirEntry == nil || dirEntry.IsDir() {
-			slog.Debug("not a file that can be used for metadata extraction", "dir", dirEntry, "path", root, "currentPath", path)
+		if dir == nil || dir.IsDir() {
+			slog.Debug("not a file that can be used for metadata extraction", "dir", dir, "root", root, "path", path)
 			return nil
 		}
+
 		fileData, err := storage.LoadSiteFile(path, m.store)
 		if err != nil {
 			return fmt.Errorf("failed to load file data: %w", err)
 		}
 		if len(fileData.Data) < 3 {
-			slog.Debug("no file data viable for conversion found", "dir", dirEntry, "path", root)
+			slog.Warn("no file data viable for conversion", "dir", dir, "root", root, "path", path)
+			return nil
+		}
+		if len(fileData.Data) > _maxInputSize {
+			slog.Warn("file data size exceeds current max", "dir", dir, "root", root, "path", path)
 			return nil
 		}
 		if !storage.SupportedContentFile(fileData.Extension) {
-			slog.Debug("unsupported content file extension", "path", path)
+			slog.Debug("unsupported content file extension", "dir", dir, "root", root, "path", path)
 			return nil
 		}
 
-		content, err := m.getContentMetadata(fileData.Data, dirEntry.Name(), root)
+		content, err := m.getContentMetadata(fileData.Data, fileData.Name, root)
 		if err != nil {
-			return fmt.Errorf("failed to convert to content: %w", err)
+			return fmt.Errorf("failed to convert to content %s: %w", path, err)
 		}
-		content.InputDir = path
-
 		if content.ContentMetadata.Draft {
-			slog.Debug("is draft", "file", path)
+			slog.Debug("is draft", "path", path)
 			return nil
 		}
+		content.InputPath = path
 
+		// TODO: the input dir is not a dir, its the path to the content file. this needs to be corrected so the artificial name is
+		// the output file name after filtering and the input dir is field name is correct, InPath or something...
+		m.updateManifest(content, metadata)
 		metadata.SiteContentEntities = append(metadata.SiteContentEntities, content)
 
 		if m.ctx.MakeSitemapXML {
-			xmlUrl := m.makeSitemapEntry(content)
+			xmlUrl := m.updateSitemap(content)
 			metadata.SiteMapUrlMetadata = append(metadata.SiteMapUrlMetadata, xmlUrl)
 		}
 		return err
 	})
 }
 
-func (m *metadata) makeSitemapEntry(ce *ContentEntity) SitemapUrl {
-	// TODO:
+func (m *metadata) updateManifest(content *ContentEntity, metadata *SiteMetadata) {
+	cm := &content.ContentMetadata
+	id := strings.TrimSpace(cm.TemplateId)
+	if id == _defaultPostTemplate || (id == "" && m.ctx.PostInputDir == content.InputPath) {
+		if cm.Type != "" {
+			metadata.ContentManifest[cm.Type] = append(metadata.ContentManifest[cm.Type], cm)
+		}
+		metadata.ContentManifest[m.ctx.DefaultType] = append(metadata.ContentManifest[m.ctx.DefaultType], cm)
+		metadata.ContentManifest = sortTypes(cm, metadata.ContentManifest, cm.Tags...)
+		metadata.ContentManifest = sortTypes(cm, metadata.ContentManifest, cm.Categories...)
+	}
+}
+
+func sortTypes(cm *ContentMetadata, data map[string][]*ContentMetadata, types ...string) map[string][]*ContentMetadata {
+	if len(types) == 0 {
+		return data
+	}
+	for _, id := range types {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		data[id] = append(data[id], cm)
+	}
+	return data
+}
+
+func (m *metadata) getContentMetadata(fileData []byte, fileName string, root string) (*ContentEntity, error) {
+
+	frontmatter, bodyData, err := SplitFileContent(fileData, m.ctx.FrontmatterToken)
+	if err != nil {
+		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileName)
+	}
+	frontmatter.Description = m.extractDescription(frontmatter, bodyData)
+	fullFileName := strings.ReplaceAll(strings.ToLower(fileName), " ", "-")
+
+	ce := ContentEntity{
+		// TODO: transformation to metadata should allow the frontmatter to be dynamically set
+		FileName:           fileName,
+		ArtificialFileName: fullFileName,
+		ContentMetadata:    frontmatter,
+	}
+
+	if !m.ctx.AllowNamelessDateSort && root != m.ctx.PageInputDir {
+		datePrefix := isoDateRegex.FindStringIndex(fileName)
+		if datePrefix == nil || datePrefix[0] != 0 {
+			return nil, fmt.Errorf("file not prefixed with valid date, this can be disabled in configuration at the cost of performance")
+		}
+		ce.ArtificialFileName = strings.TrimLeft(fileName[datePrefix[1]:], "_- ")
+	}
+
+	subDir := ""
+	if strings.TrimSpace(ce.ContentMetadata.TemplateId) == "" {
+		switch root {
+
+		case m.ctx.PostInputDir:
+			ce.ContentMetadata.TemplateId = _defaultPostTemplate
+			subDir = m.ctx.PostOutputDir
+
+		case m.ctx.PageInputDir:
+			ce.ContentMetadata.TemplateId = _defaultPageTemplate
+		}
+	}
+
+	// TODO: There are a few places I have taken shortcuts like this that need to be fixed to reduce complexity and lines of code when time permits
+	usePrettyUrl := !m.ctx.FullHtmlPaths && fullFileName != _indexHtmlFile
+	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
+	if usePrettyUrl {
+		if usePermalink {
+			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink, _indexHtmlFile)
+			ce.RelativePath = path.Join(m.ctx.Base, subDir, ce.ContentMetadata.Permalink)
+		} else {
+			fileName := strings.TrimSuffix(fullFileName, filepath.Ext(ce.ArtificialFileName))
+			ce.OutputPath = filepath.Join(subDir, fileName, _indexHtmlFile)
+			ce.RelativePath = path.Join(m.ctx.Base, subDir, fileName)
+		}
+	} else {
+		if usePermalink {
+			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink)
+		} else {
+			ce.OutputPath = filepath.Join(subDir, ce.ArtificialFileName)
+		}
+		ce.RelativePath = path.Join(m.ctx.Base, subDir)
+	}
+
+	ce.ContentMetadata.Url = ce.RelativePath
+
+	return &ce, nil
+}
+
+func (m *metadata) updateSitemap(ce *ContentEntity) SitemapUrl {
+
 	siteUrl, _ := url.Parse(m.ctx.SiteURL)
 	if m.ctx.FullHtmlPaths {
-		siteUrl.Path = path.Join(siteUrl.Path, ce.OutPath)
+		siteUrl.Path = path.Join(siteUrl.Path, ce.OutputPath)
 	} else {
 		siteUrl.Path = path.Join(siteUrl.Path, ce.RelativePath)
 	}
@@ -160,65 +270,6 @@ func (m *metadata) makeSitemapEntry(ce *ContentEntity) SitemapUrl {
 		LastMod: xmlDate.Format(_YYYYMMDD_RFC3339),
 	}
 	return xmlUrl
-}
-
-// TODO: There are a few places I have taken shortcuts like this function that need to be fixed to reduce complexity and lines of code when time permits
-func (m *metadata) getContentMetadata(fileData []byte, fileName string, contentRoot string) (*ContentEntity, error) {
-
-	if len(fileData) == 0 {
-		return nil, fmt.Errorf("no data provided for file to be rendered to content")
-	}
-	if len(fileData) > _maxInputSize {
-		return nil, fmt.Errorf("file data size exceeds current max")
-	}
-
-	frontmatter, bodyData, err := SplitFileContent(fileData, m.ctx.FrontmatterToken)
-	if err != nil {
-		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileName)
-	}
-	frontmatter.Description = m.extractDescription(frontmatter, bodyData)
-
-	fullFileName := strings.ReplaceAll(strings.ToLower(fileName), " ", "-")
-	ce := ContentEntity{
-		ContentMetadata: frontmatter,
-		Name:            fullFileName,
-	}
-
-	subDir := ""
-	if strings.TrimSpace(ce.ContentMetadata.TemplateId) == "" {
-		switch contentRoot {
-
-		case m.ctx.PostInputDir:
-			ce.ContentMetadata.TemplateId = _defaultPostTemplate
-			subDir = m.ctx.PostOutputDir
-
-		case m.ctx.PageInputDir:
-			ce.ContentMetadata.TemplateId = _defaultPageTemplate
-		}
-	}
-
-	usePrettyUrl := !m.ctx.FullHtmlPaths && fullFileName != _indexHtmlFile
-	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
-	if usePrettyUrl {
-		if usePermalink {
-			ce.OutPath = filepath.Join(subDir, ce.ContentMetadata.Permalink, _indexHtmlFile)
-			ce.RelativePath = path.Join(m.ctx.Base, subDir, ce.ContentMetadata.Permalink)
-		} else {
-			fileName := strings.TrimSuffix(fullFileName, filepath.Ext(fullFileName))
-			ce.OutPath = filepath.Join(subDir, fileName, _indexHtmlFile)
-			ce.RelativePath = path.Join(m.ctx.Base, subDir, fileName)
-		}
-	} else {
-		if usePermalink {
-			ce.OutPath = filepath.Join(subDir, ce.ContentMetadata.Permalink)
-		} else {
-			ce.OutPath = filepath.Join(subDir, fullFileName)
-		}
-		ce.RelativePath = path.Join(m.ctx.Base, subDir)
-	}
-
-	ce.ContentMetadata.Url = ce.RelativePath
-	return &ce, nil
 }
 
 func (m *metadata) extractDescription(fm ContentMetadata, body []byte) string {
@@ -247,7 +298,6 @@ func truncateBytes(data []byte, limit int) string {
 	return summary
 }
 
-// TODO: move
 func SplitFileContent(content []byte, token string) (ContentMetadata, []byte, error) {
 
 	tok := []byte(token)
