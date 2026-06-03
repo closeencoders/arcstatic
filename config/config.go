@@ -33,7 +33,8 @@ type SiteContext struct {
 	MakeTableOfContents bool `yaml:"make_toc"`
 
 	// TODO:
-	JsonLog bool `yaml:"Json_log"`
+	JsonLog  bool   `yaml:"json_log"`
+	LogLevel string `yaml:"log_level"`
 	// TODO:
 	KeepDateUrl bool `yaml:"keep_date_url"`
 	// TODO:
@@ -63,6 +64,6 @@ func NewContext(root string) *SiteContext {
 		MakeSitemapXML:   true,
 		MakePostMetadata: true,
 
-		AllowNamelessDateSort: false,
+		LogLevel: "INFO",
 	}
 }

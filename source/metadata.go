@@ -117,6 +117,7 @@ func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) error {
 
 	baseLog := slog.With("root", root)
+	baseLog.Debug("searching for source files")
 
 	return fs.WalkDir(m.store, root, func(path string, dir os.DirEntry, err error) error {
 
@@ -140,15 +141,15 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 			return fmt.Errorf("failed to load file data: %w", err)
 		}
 		if len(fileData.Data) < 3 {
-			log.Warn("no file data viable for conversion")
+			log.Warn("no file data viable for conversion, skipping")
 			return nil
 		}
 		if len(fileData.Data) > _maxInputSize {
-			log.Warn("file data size exceeds current max")
+			log.Warn("file data size exceeds current max, skipping")
 			return nil
 		}
 		if !storage.SupportedContentFile(fileData.Extension) {
-			log.Debug("unsupported content file extension")
+			log.Debug("unsupported content file extension, skipping")
 			return nil
 		}
 
@@ -212,10 +213,10 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 	fullFileName := strings.ReplaceAll(strings.ToLower(fileName), " ", "-")
 
 	ce := ContentEntity{
-		// TODO: transformation to metadata should allow the frontmatter to be dynamically set
 		FileName:           fileName,
 		ArtificialFileName: fullFileName,
-		ContentMetadata:    frontmatter,
+		// TODO: transformation to metadata around here or when split from the file should allow the frontmatter to be dynamically set
+		ContentMetadata: frontmatter,
 	}
 
 	if !m.ctx.AllowNamelessDateSort && root != m.ctx.PageInputDir {

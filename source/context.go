@@ -33,8 +33,6 @@ func LoadSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 		ctx = createDefaultContext(path)
 	}
 
-	slog.Debug("config loaded", "config", ctx)
-
 	// TODO: Embedded defaults/themes
 	componentsPath := filepath.Join(path, _componentsLoc)
 	componentsMap, err := storage.LoadFilesToMap(componentsPath, store)
