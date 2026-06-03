@@ -2,6 +2,7 @@ package source
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -115,10 +116,22 @@ func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 
 func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) error {
 
+	baseLog := slog.With("root", root)
+
 	return fs.WalkDir(m.store, root, func(path string, dir os.DirEntry, err error) error {
 
+		log := baseLog.With("path", path)
+
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				slog.Warn("filed does not exist", "reason", err)
+				return nil
+			}
+			return fmt.Errorf("Failed to walk dir: %w", err)
+		}
+
 		if dir == nil || dir.IsDir() {
-			slog.Debug("not a file that can be used for metadata extraction", "dir", dir, "root", root, "path", path)
+			log.Debug("not a file that can be used for metadata extraction")
 			return nil
 		}
 
@@ -127,15 +140,15 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 			return fmt.Errorf("failed to load file data: %w", err)
 		}
 		if len(fileData.Data) < 3 {
-			slog.Warn("no file data viable for conversion", "dir", dir, "root", root, "path", path)
+			log.Warn("no file data viable for conversion")
 			return nil
 		}
 		if len(fileData.Data) > _maxInputSize {
-			slog.Warn("file data size exceeds current max", "dir", dir, "root", root, "path", path)
+			log.Warn("file data size exceeds current max")
 			return nil
 		}
 		if !storage.SupportedContentFile(fileData.Extension) {
-			slog.Debug("unsupported content file extension", "dir", dir, "root", root, "path", path)
+			log.Debug("unsupported content file extension")
 			return nil
 		}
 
@@ -144,7 +157,7 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 			return fmt.Errorf("failed to convert to content %s: %w", path, err)
 		}
 		if content.ContentMetadata.Draft {
-			slog.Debug("is draft", "path", path)
+			log.Debug("is draft")
 			return nil
 		}
 		content.InputPath = path
