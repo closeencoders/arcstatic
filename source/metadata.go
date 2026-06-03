@@ -124,10 +124,10 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
-				slog.Warn("filed does not exist", "reason", err)
+				slog.Warn("file does not exist", "reason", err)
 				return nil
 			}
-			return fmt.Errorf("Failed to walk dir: %w", err)
+			return fmt.Errorf("failed to walk dir: %w", err)
 		}
 
 		if dir == nil || dir.IsDir() {
