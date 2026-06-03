@@ -119,37 +119,36 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 	baseLog := slog.With("root", root)
 	baseLog.Debug("searching for source files")
 
-	return fs.WalkDir(m.store, root, func(path string, dir os.DirEntry, err error) error {
+	return fs.WalkDir(m.store, root, func(path string, dirEntry os.DirEntry, err error) error {
 
 		log := baseLog.With("path", path)
 
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
-				log.Warn("file does not exist", "reason", err)
+				log.Warn("file does not exist, skipping")
 				return nil
 			}
 			return fmt.Errorf("failed to walk dir %s: %w", path, err)
 		}
-
-		if dir == nil || dir.IsDir() {
-			log.Debug("not a file that can be used for metadata extraction")
+		if dirEntry == nil || dirEntry.IsDir() {
+			log.Debug("next directory entry found")
 			return nil
 		}
 
 		fileData, err := storage.LoadSiteFile(path, m.store)
 		if err != nil {
+			if errors.Is(err, storage.ErrUnsupported) {
+				log.Debug("unsupported file for metadata extraction, skipping")
+				return nil
+			}
 			return fmt.Errorf("failed to load file data: %w", err)
 		}
 		if len(fileData.Data) < 3 {
-			log.Warn("no file data viable for conversion, skipping")
+			log.Warn("not enough file data viable for conversion, skipping")
 			return nil
 		}
 		if len(fileData.Data) > _maxInputSize {
 			log.Warn("file data size exceeds current max, skipping")
-			return nil
-		}
-		if !storage.SupportedContentFile(fileData.Extension) {
-			log.Debug("unsupported content file extension, skipping")
 			return nil
 		}
 
@@ -163,15 +162,15 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 		}
 		content.InputPath = path
 
-		// TODO: the input dir is not a dir, its the path to the content file. this needs to be corrected so the artificial name is
-		// the output file name after filtering and the input dir is field name is correct, InPath or something...
-		m.updateManifest(content, metadata)
+		if m.ctx.AllowManifest {
+			m.updateManifest(content, metadata)
+		}
+		if m.ctx.MakeSitemapXML {
+			m.updateSitemap(content, metadata)
+		}
+
 		metadata.SiteContentEntities = append(metadata.SiteContentEntities, content)
 
-		if m.ctx.MakeSitemapXML {
-			xmlUrl := m.updateSitemap(content)
-			metadata.SiteMapUrlMetadata = append(metadata.SiteMapUrlMetadata, xmlUrl)
-		}
 		return err
 	})
 }
@@ -203,6 +202,8 @@ func sortTypes(cm *ContentMetadata, data map[string][]*ContentMetadata, types ..
 	return data
 }
 
+// TODO: the input dir is not a dir, its the path to the content file. this needs to be corrected so the artificial name is
+// the output file name after filtering and the input dir is field name is correct, InPath or something...
 func (m *metadata) getContentMetadata(fileData []byte, fileName string, root string) (*ContentEntity, error) {
 
 	frontmatter, bodyData, err := SplitFileContent(fileData, m.ctx.FrontmatterToken)
@@ -266,16 +267,16 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 	return &ce, nil
 }
 
-func (m *metadata) updateSitemap(ce *ContentEntity) SitemapUrl {
+func (m *metadata) updateSitemap(content *ContentEntity, metadata *SiteMetadata) {
 
 	siteUrl, _ := url.Parse(m.ctx.SiteURL)
 	if m.ctx.FullHtmlPaths {
-		siteUrl.Path = path.Join(siteUrl.Path, ce.OutputPath)
+		siteUrl.Path = path.Join(siteUrl.Path, content.OutputPath)
 	} else {
-		siteUrl.Path = path.Join(siteUrl.Path, ce.RelativePath)
+		siteUrl.Path = path.Join(siteUrl.Path, content.RelativePath)
 	}
 
-	xmlDate := ce.ContentMetadata.Date
+	xmlDate := content.ContentMetadata.Date
 	if xmlDate.IsZero() {
 		xmlDate = time.Now()
 	}
@@ -283,7 +284,8 @@ func (m *metadata) updateSitemap(ce *ContentEntity) SitemapUrl {
 		Loc:     siteUrl.String(),
 		LastMod: xmlDate.Format(_YYYYMMDD_RFC3339),
 	}
-	return xmlUrl
+
+	metadata.SiteMapUrlMetadata = append(metadata.SiteMapUrlMetadata, xmlUrl)
 }
 
 func (m *metadata) extractDescription(fm ContentMetadata, body []byte) string {

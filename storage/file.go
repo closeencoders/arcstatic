@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	errUnsupported = errors.New("unsupported file extension")
+	// For site specific files meant for the SSG process, only certain file types are supported
+	ErrUnsupported = errors.New("unsupported file extension")
 
 	supportedContentTypes  = map[string]struct{}{".md": {}, ".markdown": {}, ".html": {}, ".htm": {}}
 	supportedDataFileTypes = map[string]struct{}{".json": {}, ".xml": {}, ".yml": {}, ".yaml": {}}
@@ -54,23 +55,26 @@ func LoadFilesToMap(root string, fsys fs.FS) (map[string][]byte, error) {
 	fileMap := make(map[string][]byte)
 	slog.Debug("loading file data to map", "path", root)
 
-	err := fs.WalkDir(fsys, root, func(path string, entry fs.DirEntry, err error) error {
+	err := fs.WalkDir(fsys, root, func(path string, dirEntry fs.DirEntry, err error) error {
 
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() {
+		if dirEntry == nil || dirEntry.IsDir() {
+			slog.Debug("next directory entry found")
 			return nil
 		}
 
 		fileData, err := LoadSiteFile(path, fsys)
-		if errors.Is(err, errUnsupported) {
+		if errors.Is(err, ErrUnsupported) {
+			slog.Debug("unable to load file into map context", "reason", err)
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		fileMap[entry.Name()] = fileData.Data
+		// TODO: handle duplicates and alt names/aliases
+		fileMap[dirEntry.Name()] = fileData.Data
 		return nil
 	})
 	return fileMap, err
@@ -79,8 +83,7 @@ func LoadFilesToMap(root string, fsys fs.FS) (map[string][]byte, error) {
 func LoadSiteFile(path string, fsys fs.FS) (FileData, error) {
 
 	if !SupportedFile(path) {
-		slog.Debug("unsupported file extension", "path", path)
-		return FileData{}, errUnsupported
+		return FileData{}, ErrUnsupported
 	}
 
 	data, err := fs.ReadFile(fsys, path)

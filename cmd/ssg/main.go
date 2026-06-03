@@ -29,6 +29,7 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
+
 		config, err := source.LoadSiteContext(inputLocation, storage.NewOSFileStorage())
 		if err != nil {
 			return fmt.Errorf("failed to load site context and configuration: %w", err)
@@ -39,6 +40,8 @@ var rootCmd = &cobra.Command{
 		var level slog.Level = slog.LevelInfo
 		if verbose {
 			level = slog.LevelDebug
+		} else if strings.TrimSpace(config.LogLevel) == "" {
+			level = slog.LevelInfo
 		} else if err := level.UnmarshalText([]byte(config.LogLevel)); err != nil {
 			level = slog.LevelInfo
 		}
