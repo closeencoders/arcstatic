@@ -37,11 +37,11 @@ type SiteContext struct {
 
 	// By default, content is given in date order by file name to improve performance. This flag allows this to be disabled at the cost of performance.
 	AllowNamelessDateSort bool `yaml:"allow_nameless_date_sort"`
-	// TODO:
-	KeepDateUrl bool `yaml:"keep_date_url"`
 
 	// TODO:
-	AllowCustomTaxonomy bool `yaml:"allow_custom_taxonomy"`
+	KeepDateUrl bool `yaml:"keep_date_url"`
+	// TODO:
+	AllowTaxonomyPaths bool `yaml:"allow_taxonomy_paths"`
 
 	AllowManifest bool
 }

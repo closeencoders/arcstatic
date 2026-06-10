@@ -163,8 +163,11 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 		content.InputPath = path
 
 		if m.ctx.AllowManifest {
-			m.updateManifest(content, metadata)
+			m.updateManifest(root, content, metadata)
 		}
+
+		m.buildPaths(root, content)
+
 		if m.ctx.MakeSitemapXML {
 			m.updateSitemap(content, metadata)
 		}
@@ -175,34 +178,80 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 	})
 }
 
-func (m *metadata) updateManifest(content *ContentEntity, metadata *SiteMetadata) {
+func (m *metadata) updateManifest(root string, content *ContentEntity, metadata *SiteMetadata) {
 	cm := &content.ContentMetadata
-	id := strings.TrimSpace(cm.TemplateId)
-	if id == _defaultPostTemplate || (id == "" && m.ctx.PostInputDir == content.InputPath) {
-		if cm.Type != "" {
+	if m.ctx.PostInputDir == root {
+		if cm.Type != "" && cm.Type != m.ctx.DefaultType {
+			slog.Debug("adding type", "type", cm.Type)
 			metadata.ContentManifest[cm.Type] = append(metadata.ContentManifest[cm.Type], cm)
 		} else {
+			slog.Debug("setting type", "type", m.ctx.DefaultType)
 			cm.Type = m.ctx.DefaultType
 		}
-		// Will contain all posts
+
 		metadata.ContentManifest[m.ctx.DefaultType] = append(metadata.ContentManifest[m.ctx.DefaultType], cm)
-		metadata.ContentManifest = sortTypes(cm, metadata.ContentManifest, cm.Tags...)
-		metadata.ContentManifest = sortTypes(cm, metadata.ContentManifest, cm.Categories...)
+
+		m.sortTypes(cm, metadata.ContentManifest, cm.Tags...)
+		m.sortTypes(cm, metadata.ContentManifest, cm.Categories...)
 	}
 }
 
-func sortTypes(cm *ContentMetadata, data map[string][]*ContentMetadata, types ...string) map[string][]*ContentMetadata {
+func (m *metadata) sortTypes(cm *ContentMetadata, data map[string][]*ContentMetadata, types ...string) {
 	if len(types) == 0 {
-		return data
+		return
 	}
 	for _, id := range types {
 		id = strings.TrimSpace(id)
-		if id == "" {
+		if id == "" || id == m.ctx.DefaultType {
 			continue
 		}
 		data[id] = append(data[id], cm)
 	}
-	return data
+}
+
+func (m *metadata) buildPaths(root string, ce *ContentEntity) {
+
+	subDir := ""
+	if strings.TrimSpace(ce.ContentMetadata.TemplateId) == "" {
+		switch root {
+
+		case m.ctx.PostInputDir:
+
+			ce.ContentMetadata.TemplateId = _defaultPostTemplate
+
+			if m.ctx.AllowTaxonomyPaths && ce.ContentMetadata.Type != "" {
+				subDir = filepath.Join(ce.ContentMetadata.Type, m.ctx.PostOutputDir)
+				slog.Debug("using type path", "type", ce.ContentMetadata.Type, "subdir", subDir)
+			}
+
+		case m.ctx.PageInputDir:
+			ce.ContentMetadata.TemplateId = _defaultPageTemplate
+		}
+	}
+
+	// TODO: There are a few places I have taken shortcuts like this that need to be fixed to reduce complexity and lines of code when time permits
+	usePrettyUrl := !m.ctx.FullHtmlPaths && ce.FileName != _indexHtmlFile
+	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
+
+	if usePrettyUrl {
+		if usePermalink {
+			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink, _indexHtmlFile)
+			ce.RelativePath = path.Join(m.ctx.Base, subDir, ce.ContentMetadata.Permalink)
+		} else {
+			fileName := strings.TrimSuffix(ce.FileName, filepath.Ext(ce.ArtificialFileName))
+			ce.OutputPath = filepath.Join(subDir, fileName, _indexHtmlFile)
+			ce.RelativePath = path.Join(m.ctx.Base, subDir, fileName)
+		}
+	} else {
+		if usePermalink {
+			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink)
+		} else {
+			ce.OutputPath = filepath.Join(subDir, ce.ArtificialFileName)
+		}
+		ce.RelativePath = path.Join(m.ctx.Base, subDir)
+	}
+
+	ce.ContentMetadata.Url = ce.RelativePath
 }
 
 // TODO: the input dir is not a dir, its the path to the content file. this needs to be corrected so the artificial name is
@@ -230,42 +279,6 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 		}
 		ce.ArtificialFileName = strings.TrimLeft(fileName[datePrefix[1]:], "_- ")
 	}
-
-	subDir := ""
-	if strings.TrimSpace(ce.ContentMetadata.TemplateId) == "" {
-		switch root {
-
-		case m.ctx.PostInputDir:
-			ce.ContentMetadata.TemplateId = _defaultPostTemplate
-			subDir = m.ctx.PostOutputDir
-
-		case m.ctx.PageInputDir:
-			ce.ContentMetadata.TemplateId = _defaultPageTemplate
-		}
-	}
-
-	// TODO: There are a few places I have taken shortcuts like this that need to be fixed to reduce complexity and lines of code when time permits
-	usePrettyUrl := !m.ctx.FullHtmlPaths && fullFileName != _indexHtmlFile
-	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
-	if usePrettyUrl {
-		if usePermalink {
-			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink, _indexHtmlFile)
-			ce.RelativePath = path.Join(m.ctx.Base, subDir, ce.ContentMetadata.Permalink)
-		} else {
-			fileName := strings.TrimSuffix(fullFileName, filepath.Ext(ce.ArtificialFileName))
-			ce.OutputPath = filepath.Join(subDir, fileName, _indexHtmlFile)
-			ce.RelativePath = path.Join(m.ctx.Base, subDir, fileName)
-		}
-	} else {
-		if usePermalink {
-			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink)
-		} else {
-			ce.OutputPath = filepath.Join(subDir, ce.ArtificialFileName)
-		}
-		ce.RelativePath = path.Join(m.ctx.Base, subDir)
-	}
-
-	ce.ContentMetadata.Url = ce.RelativePath
 
 	return &ce, nil
 }
