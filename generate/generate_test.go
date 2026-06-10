@@ -1,13 +1,32 @@
 package generate
 
 import (
+	"io/fs"
 	"testing"
 	"testing/fstest"
 
 	"github.com/closeencoders/arcstatic/config"
-	"github.com/closeencoders/arcstatic/internal/testutil"
 	"github.com/closeencoders/arcstatic/source"
+	"github.com/closeencoders/arcstatic/storage"
 )
+
+type FakeStorage struct {
+	TestFiles fstest.MapFS
+}
+
+var _ storage.Storage = FakeStorage{}
+
+func (fs FakeStorage) Write(name string, data []byte, perm int) error {
+	return nil
+}
+
+func (fs FakeStorage) Open(name string) (fs.File, error) {
+	return fs.TestFiles.Open(name)
+}
+
+func (fs FakeStorage) Mkdir(perm int, path ...string) (string, error) {
+	return "", nil
+}
 
 // TODO: seeing if the test coverage can tell this test is useless or not.
 func TestConvertToContent(t *testing.T) {
@@ -35,7 +54,7 @@ func TestConvertToContent(t *testing.T) {
 		}
 
 		conv := NewConverter(ctx, *NewMarkdown(ctx), *temp)
-		gen := NewGenerator(ctx, *conv, testutil.NewFakeStorage(fstest.MapFS{}))
+		gen := NewGenerator(ctx, *conv, FakeStorage{fstest.MapFS{}})
 		metadata := source.SiteMetadata{
 			SiteContentEntities: []*source.ContentEntity{
 				&tt.ce,

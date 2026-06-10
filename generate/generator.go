@@ -65,7 +65,7 @@ func (g *generator) Generate(metadata source.SiteMetadata) error {
 		slog.Debug("Writing content", "path", outPath)
 		err = g.store.Write(outPath, content, _defaultFilePerm)
 		if err != nil {
-			return fmt.Errorf("failed to content to file: %w", err)
+			return fmt.Errorf("failed to write content to file: %w", err)
 		}
 	}
 

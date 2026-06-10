@@ -1,17 +1,41 @@
 package source
 
 import (
+	"io/fs"
 	"path"
 	"sync"
 	"testing"
 	"testing/fstest"
 
-	"github.com/closeencoders/arcstatic/internal/testutil"
+	"github.com/closeencoders/arcstatic/storage"
 )
 
-func TestLoadConfig(t *testing.T) {
+type FakeStorage struct {
+	TestFiles fstest.MapFS
+}
 
-	t.Parallel()
+var _ storage.Storage = FakeStorage{}
+
+func (fs FakeStorage) Write(name string, data []byte, perm int) error {
+	return nil
+}
+
+func (fs FakeStorage) Open(name string) (fs.File, error) {
+	return fs.TestFiles.Open(name)
+}
+
+func (fs FakeStorage) Mkdir(perm int, path ...string) (string, error) {
+	return "", nil
+}
+
+func AssertEqual(t *testing.T, msg string, got, want any) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s:\nGot:[%v]\nWnt:[%v]", msg, got, want)
+	}
+}
+
+func TestLoadConfig(t *testing.T) {
 
 	const baseDir = "testlocation"
 	defaultPostLoc := path.Join(baseDir, _postsLoc)
@@ -57,16 +81,13 @@ func TestLoadConfig(t *testing.T) {
 		},
 	}
 
-	var wg sync.WaitGroup
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			wg.Add(1)
-
-			mockStore := testutil.NewFakeStorage(tt.configFile)
-
-			result, err := LoadSiteContext(baseDir, mockStore)
+			fs := FakeStorage{
+				TestFiles: tt.configFile,
+			}
+			result, err := LoadSiteContext(baseDir, fs)
 
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("unexpected error state while loading site context test: %v, wantErr: %v", err, tt.wantErr)
@@ -74,10 +95,72 @@ func TestLoadConfig(t *testing.T) {
 			if tt.wantErr {
 				return
 			}
-			testutil.AssertEqual(t, "SiteUrl", result.SiteURL, tt.wantUrl)
-			testutil.AssertEqual(t, "PostInputDir", result.PostInputDir, tt.wantDir)
+			AssertEqual(t, "SiteUrl", result.SiteURL, tt.wantUrl)
+			AssertEqual(t, "PostInputDir", result.PostInputDir, tt.wantDir)
 		})
 	}
+}
+
+func TestTaxonomy(t *testing.T) {
+
+	tests := []struct {
+		name string
+
+		path     string
+		fileName string
+		fileData []byte
+
+		wantType string
+	}{
+		{
+			name: "Basic Post With Default Type Should Be Added To Manifest",
+			path: "fakepostloc",
+
+			fileName: "fakepostloc/2026-06-01-basic_post.md",
+			fileData: []byte("---\ntitle: Hello\n---\n# Header"),
+
+			wantType: "Posts",
+		},
+		{
+			name: "Basic Post With Valid Type Override Should Be Added To Manifest",
+			path: "fakepostloc",
+
+			fileName: "fakepostloc/2026-06-01-basic_post.md",
+			fileData: []byte("---\ntitle: Hello\ntype: other---\n# Header"),
+
+			wantType: "other",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			ctx := createDefaultContext("public")
+			ctx.PostInputDir = "fakepostloc"
+			ctx.PageInputDir = "fakepageloc"
+
+			testFile := fstest.MapFS{tt.fileName: &fstest.MapFile{Data: tt.fileData}}
+			fs := FakeStorage{testFile}
+			ml := NewMetadata(ctx, fs)
+
+			result, err := ml.LoadMetadata(tt.path)
+			if err != nil {
+				t.Fatalf("LoadMetadata() execution unexpected error = %v", err)
+			}
+			if len(result.SiteContentEntities) == 0 {
+				t.Fatalf("Expected Metadata for taxonomy test did not load")
+			}
+
+			ce := result.SiteContentEntities[0]
+			AssertEqual(t, "wrong type", ce.ContentMetadata.Type, tt.wantType)
+
+			_, ok := result.ContentManifest[tt.wantType]
+			if !ok {
+				t.Errorf("type was not applied to content manifest %s %s", tt.wantType, ce.FileName)
+			}
+		})
+	}
+
 }
 
 // TODO: Refactor to break test up into chunks of expected behavior
@@ -175,7 +258,7 @@ func TestLoadMetadata(t *testing.T) {
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
 
-			fs := testutil.NewFakeStorage(tt.fileData)
+			fs := FakeStorage{tt.fileData}
 			ml := metadata{ctx: ctx, store: fs}
 
 			result, err := ml.LoadMetadata(tt.path)
@@ -197,13 +280,13 @@ func TestLoadMetadata(t *testing.T) {
 			ce := result.SiteContentEntities[0]
 			if ce.InputPath == ctx.PostInputDir {
 				if ce.ContentMetadata.Type == "" {
-					testutil.AssertEqual(t, "type should have defaulted", ce.ContentMetadata.Type, ctx.DefaultType)
+					AssertEqual(t, "type should have defaulted", ce.ContentMetadata.Type, ctx.DefaultType)
 				} else {
-					testutil.AssertEqual(t, "type", ce.ContentMetadata.Type, tt.wantType)
+					AssertEqual(t, "type", ce.ContentMetadata.Type, tt.wantType)
 				}
 			}
-			testutil.AssertEqual(t, "template", ce.ContentMetadata.TemplateId, tt.wantTemplate)
-			testutil.AssertEqual(t, "title", ce.ContentMetadata.Title, tt.wantTitle)
+			AssertEqual(t, "template", ce.ContentMetadata.TemplateId, tt.wantTemplate)
+			AssertEqual(t, "title", ce.ContentMetadata.Title, tt.wantTitle)
 		})
 	}
 }

@@ -181,7 +181,10 @@ func (m *metadata) updateManifest(content *ContentEntity, metadata *SiteMetadata
 	if id == _defaultPostTemplate || (id == "" && m.ctx.PostInputDir == content.InputPath) {
 		if cm.Type != "" {
 			metadata.ContentManifest[cm.Type] = append(metadata.ContentManifest[cm.Type], cm)
+		} else {
+			cm.Type = m.ctx.DefaultType
 		}
+		// Will contain all posts
 		metadata.ContentManifest[m.ctx.DefaultType] = append(metadata.ContentManifest[m.ctx.DefaultType], cm)
 		metadata.ContentManifest = sortTypes(cm, metadata.ContentManifest, cm.Tags...)
 		metadata.ContentManifest = sortTypes(cm, metadata.ContentManifest, cm.Categories...)
