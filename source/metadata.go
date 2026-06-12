@@ -31,6 +31,8 @@ const (
 
 var (
 	isoDateRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
+
+	errDatePrefix error = errors.New("file not prefixed with valid date, this can be disabled in configuration at the cost of performance")
 )
 
 type SitemapUrl struct {
@@ -275,7 +277,7 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 	if !m.ctx.AllowNamelessDateSort && root != m.ctx.PageInputDir {
 		datePrefix := isoDateRegex.FindStringIndex(fileName)
 		if datePrefix == nil || datePrefix[0] != 0 {
-			return nil, fmt.Errorf("file not prefixed with valid date, this can be disabled in configuration at the cost of performance")
+			return nil, errDatePrefix
 		}
 		ce.ArtificialFileName = strings.TrimLeft(fileName[datePrefix[1]:], "_- ")
 	}

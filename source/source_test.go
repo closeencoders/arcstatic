@@ -1,6 +1,7 @@
 package source
 
 import (
+	"errors"
 	"io/fs"
 	"path"
 	"testing"
@@ -83,11 +84,7 @@ func TestLoadConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			fs := FakeStorage{
-				TestFiles: tt.configFile,
-			}
-			result, err := LoadSiteContext(baseDir, fs)
-
+			result, err := LoadSiteContext(baseDir, FakeStorage{tt.configFile})
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("unexpected error state while loading site context test: %v, wantErr: %v", err, tt.wantErr)
 			}
@@ -137,8 +134,7 @@ func TestTaxonomy(t *testing.T) {
 			ctx.PageInputDir = "fakepageloc"
 
 			testFile := fstest.MapFS{tt.fileName: &fstest.MapFile{Data: tt.fileData}}
-			fs := FakeStorage{testFile}
-			ml := NewMetadata(ctx, fs)
+			ml := NewMetadata(ctx, FakeStorage{testFile})
 
 			result, err := ml.LoadMetadata(tt.path)
 			if err != nil {
@@ -160,12 +156,14 @@ func TestTaxonomy(t *testing.T) {
 }
 
 // TODO: Refactor to break test up into chunks of expected behavior
-func TestLoadMetadata(t *testing.T) {
+func TestInvalidMetadata(t *testing.T) {
 
 	tests := []struct {
 		name     string
 		fileData fstest.MapFS
 		path     string
+
+		wantErr error
 	}{
 		{
 			name: "Unknown File Extension Should Not Load Or Attempt To Load Anything",
@@ -182,6 +180,14 @@ func TestLoadMetadata(t *testing.T) {
 			},
 		},
 		{
+			name: "Post Without Date Prefix Should Not Load With Default Settings",
+			path: "fakepostloc",
+			fileData: fstest.MapFS{
+				"fakepostloc/draft_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\ndraft: true\n---\n# Header")},
+			},
+			wantErr: errDatePrefix,
+		},
+		{
 			name: "Unknown Page Location Should Not Load Or Attempt To Load Anything",
 			path: "fakepageloc",
 			fileData: fstest.MapFS{
@@ -190,19 +196,22 @@ func TestLoadMetadata(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 
 			ctx := createDefaultContext("public")
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
 
-			fs := FakeStorage{tt.fileData}
-			ml := metadata{ctx: ctx, store: fs}
-
-			result, err := ml.LoadMetadata(tt.path)
+			ml := metadata{ctx: ctx, store: FakeStorage{test.fileData}}
+			result, err := ml.LoadMetadata(test.path)
 			if err != nil {
-				t.Fatalf("LoadMetadata() execution unexpected error = %v", err)
+
+				if test.wantErr != nil && errors.Is(err, test.wantErr) {
+					return
+				}
+
+				t.Fatalf("source loading unexpected error = %v", err)
 			}
 
 			entitiesCount := len(result.SiteContentEntities)
@@ -263,16 +272,15 @@ func TestLoadValidMetadata(t *testing.T) {
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
 
-			fs := FakeStorage{test.fileData}
-			ml := metadata{ctx: ctx, store: fs}
-
+			ml := metadata{ctx: ctx, store: FakeStorage{test.fileData}}
 			result, err := ml.LoadMetadata(test.path)
 			if err != nil {
 				t.Fatalf("source loading unexpected error = %v", err)
 			}
 
 			if len(result.SiteContentEntities) == 0 {
-				t.Fatalf("metadata should have been loaded for target path: %q", test.path)
+				t.Errorf("metadata should have been loaded for target path: %q", test.path)
+				return
 			}
 
 			ce := result.SiteContentEntities[0]
