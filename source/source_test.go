@@ -44,9 +44,11 @@ func TestLoadConfig(t *testing.T) {
 	tests := []struct {
 		name       string
 		configFile fstest.MapFS
-		wantUrl    string
-		wantDir    string
-		wantErr    bool
+
+		wantUrl string
+		wantDir string
+
+		wantErr error
 	}{
 		{
 			name: "Context Should Contain Partial Override Values From File",
@@ -63,7 +65,7 @@ func TestLoadConfig(t *testing.T) {
 			configFile: fstest.MapFS{
 				configLoc: &fstest.MapFile{Data: []byte("site_url: : : : :")},
 			},
-			wantErr: true,
+			wantErr: errInvalidConfig,
 		},
 		{
 			name: "Empty Config Should Use Full Default",
@@ -81,18 +83,18 @@ func TestLoadConfig(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 
-			result, err := LoadSiteContext(baseDir, FakeStorage{tt.configFile})
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("unexpected error state while loading site context test: %v, wantErr: %v", err, tt.wantErr)
+			result, err := LoadSiteContext(baseDir, FakeStorage{test.configFile})
+			if err != nil {
+				if test.wantErr != nil && errors.Is(err, test.wantErr) {
+					return
+				}
+				t.Fatalf("unexpected error state while loading site context test: %v, wantErr: %v", err, test.wantErr)
 			}
-			if tt.wantErr {
-				return
-			}
-			AssertEqual(t, "SiteUrl", result.SiteURL, tt.wantUrl)
-			AssertEqual(t, "PostInputDir", result.PostInputDir, tt.wantDir)
+			AssertEqual(t, "SiteUrl", result.SiteURL, test.wantUrl)
+			AssertEqual(t, "PostInputDir", result.PostInputDir, test.wantDir)
 		})
 	}
 }

@@ -22,15 +22,20 @@ const (
 	_defaultUrl    = "http://yourdomain.com/#"
 )
 
+var (
+	errInvalidConfig = errors.New("invalid site config file format")
+)
+
 func LoadSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 
 	ctx, err := createSiteContext(path, store)
 	if err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("invalid config: %w", err)
+		if errors.Is(err, fs.ErrNotExist) {
+			slog.Warn("no valid configuration file found, using defaults", "path", path, "err", err)
+			ctx = createDefaultContext(path)
+		} else {
+			return nil, fmt.Errorf("%w: %w", errInvalidConfig, err)
 		}
-		slog.Warn("no valid configuration file, using defaults", "path", path, "err", err)
-		ctx = createDefaultContext(path)
 	}
 
 	// TODO: Embedded defaults/themes
@@ -65,7 +70,7 @@ func createSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 	// Create defaults which should be the minimal operational required data, then apply config file overrides.
 	ctx := createDefaultContext(path)
 	if err := yaml.Unmarshal(fileData.Data, ctx); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal site config file: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal configuration: %w", err)
 	}
 
 	return ctx, nil
