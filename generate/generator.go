@@ -47,7 +47,7 @@ func (g *generator) Generate(metadata source.SiteMetadata) error {
 
 		fileData, err := storage.LoadSiteFile(ce.InputPath, g.store)
 		if err != nil {
-			slog.Warn("unable to create file, relative path is invalid %s, %w", ce.RelativePath, err)
+			slog.Warn("unable to create file, relative path is invalid", "path", ce.RelativePath, "err", err)
 			continue
 		}
 

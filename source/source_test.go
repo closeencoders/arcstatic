@@ -183,7 +183,7 @@ func TestInvalidMetadata(t *testing.T) {
 			name: "Post Without Date Prefix Should Not Load With Default Settings",
 			path: "fakepostloc",
 			fileData: fstest.MapFS{
-				"fakepostloc/draft_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\ndraft: true\n---\n# Header")},
+				"fakepostloc/noprefix_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\ndraft: true\n---\n# Header")},
 			},
 			wantErr: errDatePrefix,
 		},
@@ -225,13 +225,16 @@ func TestInvalidMetadata(t *testing.T) {
 func TestLoadValidMetadata(t *testing.T) {
 
 	tests := []struct {
-		name         string
-		fileData     fstest.MapFS
-		path         string
+		name     string
+		fileData fstest.MapFS
+		path     string
+
 		wantTitle    string
 		wantPath     string
 		wantTemplate string
 		wantType     string
+
+		allowDateLoad bool
 	}{
 		{
 			name: "Known Post Location Should Load",
@@ -254,6 +257,18 @@ func TestLoadValidMetadata(t *testing.T) {
 			wantTemplate: "post.html",
 		},
 		{
+			name: "Post Without Date Prefix With Allow Sort Settings Should Load",
+			path: "fakepostloc",
+			fileData: fstest.MapFS{
+				"fakepostloc/noprefix_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
+			},
+			allowDateLoad: true,
+
+			wantTitle:    "Hello",
+			wantPath:     "noprefix_post",
+			wantTemplate: "post.html",
+		},
+		{
 			name: "Known Page Location Should Load",
 			path: "fakepageloc",
 			fileData: fstest.MapFS{
@@ -271,6 +286,7 @@ func TestLoadValidMetadata(t *testing.T) {
 			ctx := createDefaultContext("public")
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
+			ctx.AllowNamelessDateSort = test.allowDateLoad
 
 			ml := metadata{ctx: ctx, store: FakeStorage{test.fileData}}
 			result, err := ml.LoadMetadata(test.path)
