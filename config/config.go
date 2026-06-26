@@ -61,7 +61,7 @@ func NewContext(root string) *SiteContext {
 
 		MaxDescriptionLen: 156,
 
-		DefaultType: "Posts",
+		DefaultType: "All",
 
 		MakeSitemapXML:   true,
 		MakePostMetadata: true,

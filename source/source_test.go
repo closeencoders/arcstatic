@@ -7,6 +7,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/closeencoders/arcstatic/config"
 	"github.com/closeencoders/arcstatic/storage"
 )
 
@@ -61,13 +62,6 @@ func TestLoadConfig(t *testing.T) {
 			wantDir: "location123/posts",
 		},
 		{
-			name: "Invalid Configuration Should Return Error",
-			configFile: fstest.MapFS{
-				configLoc: &fstest.MapFile{Data: []byte("site_url: : : : :")},
-			},
-			wantErr: errInvalidConfig,
-		},
-		{
 			name: "Empty Config Should Use Full Default",
 			configFile: fstest.MapFS{
 				configLoc: &fstest.MapFile{Data: []byte("")},
@@ -80,6 +74,13 @@ func TestLoadConfig(t *testing.T) {
 			configFile: nil,
 			wantUrl:    _defaultUrl,
 			wantDir:    defaultPostLoc,
+		},
+		{
+			name: "Invalid Configuration Should Return Error",
+			configFile: fstest.MapFS{
+				configLoc: &fstest.MapFile{Data: []byte("site_url: : : : :")},
+			},
+			wantErr: errInvalidConfig,
 		},
 	}
 
@@ -101,6 +102,8 @@ func TestLoadConfig(t *testing.T) {
 
 func TestTaxonomy(t *testing.T) {
 
+	initContext := config.NewContext("test")
+
 	tests := []struct {
 		name string
 
@@ -108,7 +111,10 @@ func TestTaxonomy(t *testing.T) {
 		fileName string
 		fileData []byte
 
-		wantType string
+		allowTaxonomyPaths bool
+
+		wantType    string
+		wantOutPath string
 	}{
 		{
 			name:     "Post With Default Type Should Be Added To Manifest",
@@ -116,7 +122,10 @@ func TestTaxonomy(t *testing.T) {
 			fileName: "fakepostloc/2026-06-01-basic_post.md",
 			fileData: []byte("---\ntitle: Hello\n---\n# Header"),
 
-			wantType: "Posts",
+			allowTaxonomyPaths: true,
+
+			wantType:    initContext.DefaultType,
+			wantOutPath: initContext.DefaultType + "/basic-post/index.html",
 		},
 		{
 			name:     "Post Valid Override Type Should Be Added To Manifest",
@@ -124,21 +133,25 @@ func TestTaxonomy(t *testing.T) {
 			fileName: "fakepostloc/2026-06-01-basic_post.md",
 			fileData: []byte("---\ntitle: Hello\ntype: other---\n# Header"),
 
-			wantType: "other",
+			allowTaxonomyPaths: true,
+
+			wantType:    "other",
+			wantOutPath: "other/basic-post/index.html",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 
 			ctx := createDefaultContext("public")
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
+			ctx.AllowTaxonomyPaths = test.allowTaxonomyPaths
 
-			testFile := fstest.MapFS{tt.fileName: &fstest.MapFile{Data: tt.fileData}}
+			testFile := fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}}
 			ml := NewMetadata(ctx, FakeStorage{testFile})
 
-			result, err := ml.LoadMetadata(tt.path)
+			result, err := ml.LoadMetadata(test.path)
 			if err != nil {
 				t.Fatalf("LoadMetadata() execution unexpected error = %v", err)
 			}
@@ -147,17 +160,20 @@ func TestTaxonomy(t *testing.T) {
 			}
 
 			ce := result.SiteContentEntities[0]
-			AssertEqual(t, "wrong type", ce.ContentMetadata.Type, tt.wantType)
+			AssertEqual(t, "wrong type", ce.ContentMetadata.Type, test.wantType)
 
-			_, ok := result.ContentManifest[tt.wantType]
+			_, ok := result.ContentManifest[test.wantType]
 			if !ok {
-				t.Errorf("type was not applied to content manifest %s %s", tt.wantType, ce.FileName)
+				t.Errorf("type was not applied to content manifest %s %s", test.wantType, ce.FileName)
+			}
+
+			if test.allowTaxonomyPaths {
+				AssertEqual(t, "expected type in path", ce.OutputPath, test.wantOutPath)
 			}
 		})
 	}
 }
 
-// TODO: Refactor to break test up into chunks of expected behavior
 func TestInvalidMetadata(t *testing.T) {
 
 	tests := []struct {
@@ -185,7 +201,7 @@ func TestInvalidMetadata(t *testing.T) {
 			name: "Post Without Date Prefix Should Not Load With Default Settings",
 			path: "fakepostloc",
 			fileData: fstest.MapFS{
-				"fakepostloc/noprefix_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\ndraft: true\n---\n# Header")},
+				"fakepostloc/noprefix_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
 			},
 			wantErr: errDatePrefix,
 		},
@@ -245,29 +261,29 @@ func TestLoadValidMetadata(t *testing.T) {
 				"fakepostloc/2026-06-01-basic_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
 			},
 			wantTitle:    "Hello",
-			wantPath:     "basic-post",
+			wantPath:     "basic-post/index.html",
 			wantTemplate: "post.html",
 		},
 		{
-			name: "Known Post Location Should Load With Irregular Name",
+			name: "Known Post Should Load With Irregular Name",
 			path: "fakepostloc",
 			fileData: fstest.MapFS{
-				"fakepostloc/2026-06-01-basic *&^(*&)  post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
+				"fakepostloc/2026-06-01-basic *&^(*&)  post.md": &fstest.MapFile{Data: []byte("---\ntitle: Irregular Name\n---\n# Header")},
 			},
-			wantTitle:    "Hello",
-			wantPath:     "basic-post",
+			wantTitle:    "Irregular Name",
+			wantPath:     "basic-post/index.html",
 			wantTemplate: "post.html",
 		},
 		{
 			name: "Post Without Date Prefix With Allow Sort Settings Should Load",
 			path: "fakepostloc",
 			fileData: fstest.MapFS{
-				"fakepostloc/noprefix_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
+				"fakepostloc/noprefix_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Without Date Prefix\n---\n# Header")},
 			},
 			allowDateLoad: true,
 
-			wantTitle:    "Hello",
-			wantPath:     "noprefix_post",
+			wantTitle:    "Without Date Prefix",
+			wantPath:     "noprefix-post/index.html",
 			wantTemplate: "post.html",
 		},
 		{
@@ -277,7 +293,7 @@ func TestLoadValidMetadata(t *testing.T) {
 				"fakepageloc/about.html": &fstest.MapFile{Data: []byte("---\ntitle: About\n---\n# Header")},
 			},
 			wantTitle:    "About",
-			wantPath:     "about",
+			wantPath:     "about/index.html",
 			wantTemplate: "page.html",
 		},
 	}
@@ -311,6 +327,7 @@ func TestLoadValidMetadata(t *testing.T) {
 			}
 			AssertEqual(t, "template", ce.ContentMetadata.TemplateId, test.wantTemplate)
 			AssertEqual(t, "title", ce.ContentMetadata.Title, test.wantTitle)
+			AssertEqual(t, "path", ce.OutputPath, test.wantPath)
 		})
 	}
 }

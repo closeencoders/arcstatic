@@ -30,7 +30,8 @@ const (
 )
 
 var (
-	isoDateRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
+	isoDateRegex   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
+	whitelistRegex = regexp.MustCompile(`[^a-zA-Z0-9.-]+`)
 
 	errDatePrefix error = errors.New("file not prefixed with valid date, this can be disabled in configuration at the cost of performance")
 )
@@ -184,7 +185,6 @@ func (m *metadata) updateManifest(root string, content *ContentEntity, metadata 
 	cm := &content.ContentMetadata
 	if m.ctx.PostInputDir == root {
 		if cm.Type != "" && cm.Type != m.ctx.DefaultType {
-			slog.Debug("adding type", "type", cm.Type)
 			metadata.ContentManifest[cm.Type] = append(metadata.ContentManifest[cm.Type], cm)
 		} else {
 			slog.Debug("setting type", "type", m.ctx.DefaultType)
@@ -222,7 +222,11 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 			ce.ContentMetadata.TemplateId = _defaultPostTemplate
 
 			if m.ctx.AllowTaxonomyPaths && ce.ContentMetadata.Type != "" {
-				subDir = filepath.Join(ce.ContentMetadata.Type, m.ctx.PostOutputDir)
+				if len(m.ctx.PostOutputDir) > 1 {
+					subDir = filepath.Join(m.ctx.PostOutputDir, ce.ContentMetadata.Type)
+				} else {
+					subDir = ce.ContentMetadata.Type
+				}
 				slog.Debug("using type path", "type", ce.ContentMetadata.Type, "subdir", subDir)
 			}
 
@@ -231,7 +235,6 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 		}
 	}
 
-	// TODO: There are a few places I have taken shortcuts like this that need to be fixed to reduce complexity and lines of code when time permits
 	usePrettyUrl := !m.ctx.FullHtmlPaths && ce.FileName != _indexHtmlFile
 	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
 
@@ -240,7 +243,7 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink, _indexHtmlFile)
 			ce.RelativePath = path.Join(m.ctx.Base, subDir, ce.ContentMetadata.Permalink)
 		} else {
-			fileName := strings.TrimSuffix(ce.FileName, filepath.Ext(ce.ArtificialFileName))
+			fileName := strings.TrimSuffix(ce.ArtificialFileName, filepath.Ext(ce.ArtificialFileName))
 			ce.OutputPath = filepath.Join(subDir, fileName, _indexHtmlFile)
 			ce.RelativePath = path.Join(m.ctx.Base, subDir, fileName)
 		}
@@ -265,21 +268,26 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileName)
 	}
 	frontmatter.Description = m.extractDescription(frontmatter, bodyData)
-	fullFileName := strings.ReplaceAll(strings.ToLower(fileName), " ", "-")
+
+	artificialFileName := whitelistRegex.ReplaceAllString(fileName, "-")
+	artificialFileName = strings.Join(strings.Fields(strings.ToLower(artificialFileName)), "-")
 
 	ce := ContentEntity{
 		FileName:           fileName,
-		ArtificialFileName: fullFileName,
+		ArtificialFileName: artificialFileName,
 		// TODO: transformation to metadata around here or when split from the file should allow the frontmatter to be dynamically set
 		ContentMetadata: frontmatter,
 	}
 
+	datePrefix := isoDateRegex.FindStringIndex(fileName)
 	if !m.ctx.AllowNamelessDateSort && root != m.ctx.PageInputDir {
-		datePrefix := isoDateRegex.FindStringIndex(fileName)
 		if datePrefix == nil || datePrefix[0] != 0 {
 			return nil, errDatePrefix
 		}
-		ce.ArtificialFileName = strings.TrimLeft(fileName[datePrefix[1]:], "_- ")
+	}
+	if datePrefix != nil {
+		ce.ArtificialFileName = strings.TrimLeft(ce.ArtificialFileName[datePrefix[1]:], "_- ")
+		slog.Debug("using ArtificialFileName name", "name", ce.ArtificialFileName)
 	}
 
 	return &ce, nil
