@@ -108,7 +108,6 @@ func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 	}
 
 	if m.ctx.AllowNamelessDateSort {
-		slog.Debug("sorting content by date")
 		slices.SortFunc(metadata.SiteContentEntities, func(a, b *ContentEntity) int {
 			return b.ContentMetadata.Date.Compare(a.ContentMetadata.Date)
 		})

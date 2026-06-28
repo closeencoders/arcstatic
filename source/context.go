@@ -32,7 +32,7 @@ func LoadSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			slog.Warn("no valid configuration file found, using defaults", "path", path, "err", err)
-			ctx = createDefaultContext(path)
+			ctx = CreateDefaultContext(path)
 		} else {
 			return nil, fmt.Errorf("%w: %w", errInvalidConfig, err)
 		}
@@ -68,7 +68,7 @@ func createSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 	}
 
 	// Create defaults which should be the minimal operational required data, then apply config file overrides.
-	ctx := createDefaultContext(path)
+	ctx := CreateDefaultContext(path)
 	if err := yaml.Unmarshal(fileData.Data, ctx); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal configuration: %w", err)
 	}
@@ -76,7 +76,7 @@ func createSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 	return ctx, nil
 }
 
-func createDefaultContext(path string) *config.SiteContext {
+func CreateDefaultContext(path string) *config.SiteContext {
 	ctx := config.NewContext(path)
 	ctx.SiteURL = _defaultUrl
 	ctx.PostInputDir = filepath.Join(path, _postsLoc)

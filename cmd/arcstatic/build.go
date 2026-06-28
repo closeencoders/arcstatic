@@ -26,7 +26,7 @@ func executeBuild(ctx *config.SiteContext, store storage.Storage, path string) e
 
 	c := *generate.NewConverter(ctx, *generate.NewMarkdown(ctx), *t)
 	sg := generate.NewGenerator(ctx, c, store)
-	if err := sg.Generate(*metadata); err != nil {
+	if _, err := sg.Generate(metadata); err != nil {
 		return fmt.Errorf("failed to generate site: %w", err)
 	}
 

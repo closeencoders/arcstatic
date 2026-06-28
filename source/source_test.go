@@ -143,7 +143,7 @@ func TestTaxonomy(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			ctx := createDefaultContext("public")
+			ctx := CreateDefaultContext("public")
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
 			ctx.AllowTaxonomyPaths = test.allowTaxonomyPaths
@@ -217,7 +217,7 @@ func TestInvalidMetadata(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			ctx := createDefaultContext("public")
+			ctx := CreateDefaultContext("public")
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
 
@@ -301,7 +301,7 @@ func TestLoadValidMetadata(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			ctx := createDefaultContext("public")
+			ctx := CreateDefaultContext("public")
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
 			ctx.AllowNamelessDateSort = test.allowDateLoad

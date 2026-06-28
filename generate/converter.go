@@ -55,12 +55,16 @@ func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, man
 		return body, fmt.Errorf("unable to render body: %w", err)
 	}
 
-	renderMap["Body"] = string(body)
 	templateId := content.ContentMetadata.TemplateId
 	templateStr := string(c.ctx.TemplateMap[templateId])
-	body, err = c.templater.Render(renderMap, templateStr)
-	if err != nil {
-		return body, fmt.Errorf("unable to render body with template %s for entity %s: %w", templateId, content.FileName, err)
+
+	// re-render with template loaded only if template exists
+	if strings.TrimSpace(templateStr) != "" {
+		renderMap["Body"] = string(body)
+		body, err = c.templater.Render(renderMap, templateStr)
+		if err != nil {
+			return body, fmt.Errorf("unable to render body with template %s for entity %s: %w", templateId, content.FileName, err)
+		}
 	}
 
 	return body, nil
