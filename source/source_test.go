@@ -331,3 +331,41 @@ func TestLoadValidMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestNoPrefixLoadOrder(t *testing.T) {
+
+	files := fstest.MapFS{
+		"fakepostloc/8-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 1995-01-01\n---\n# Header")},
+		"fakepostloc/2-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 2\ndate: 2023-10-10\n---\n# Header")},
+		"fakepostloc/5-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 5\ndate: 2020-10-10\n---\n# Header")},
+		"fakepostloc/3-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 3\ndate: 2022-10-11\n---\n# Header")},
+		"fakepostloc/4-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 4\ndate: 2021-11-10\n---\n# Header")},
+		"fakepostloc/1-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 2024-10-10\n---\n# Header")},
+		"fakepostloc/7-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 2020-06-10\n---\n# Header")},
+		"fakepostloc/6-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 2020-09-10\n---\n# Header")},
+	}
+	expected := []string{
+		"1-post.md", "2-post.md", "3-post.md", "4-post.md", "5-post.md", "6-post.md", "7-post.md", "8-post.md",
+	}
+
+	ctx := CreateDefaultContext("root")
+	ctx.PostInputDir = "fakepostloc"
+	ctx.AllowNamelessDateSort = true
+
+	ml := metadata{ctx: ctx, store: FakeStorage{files}}
+	result, err := ml.LoadMetadata("fakepostloc")
+	if err != nil {
+		t.Fatalf("source loading unexpected error = %v", err)
+	}
+
+	if len(result.SiteContentEntities) == 0 {
+		t.Errorf("metadata should have been loaded for target path: %q", "fakepostloc")
+		return
+	}
+
+	for i, f := range expected {
+		if result.SiteContentEntities[i].FileName != f {
+			t.Fatalf("Wrong order wnt: %s, got: %s", f, result.SiteContentEntities[i].FileName)
+		}
+	}
+}

@@ -80,7 +80,7 @@ func runSsg(cmd *cobra.Command, args []string) error {
 	}
 
 	if build {
-		if err := executeBuild(ctx, storage.NewOSFileStorage(), inputLocation); err != nil {
+		if err := executeBuild(ctx, storage.NewOSFileStorage()); err != nil {
 			return fmt.Errorf("build command failed: %w", err)
 		}
 	}

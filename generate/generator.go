@@ -36,13 +36,11 @@ func NewGenerator(ctx *config.SiteContext, converter converter, store storage.St
 	return &generator{ctx: ctx, converter: converter, store: store}
 }
 
-func (g *generator) Generate(metadata *source.SiteMetadata) (int, error) {
-
-	var count int = 0
+func (g *generator) Generate(metadata *source.SiteMetadata) error {
 
 	slog.Info("generating site", "size", len(metadata.SiteContentEntities))
 	if _, err := g.store.Mkdir(_defaultFilePerm, g.ctx.SiteRoot, g.ctx.PostOutputDir); err != nil {
-		return count, fmt.Errorf("failed to create content output dir: %w", err)
+		return fmt.Errorf("failed to create content output dir: %w", err)
 	}
 
 	for _, ce := range metadata.SiteContentEntities {
@@ -55,11 +53,11 @@ func (g *generator) Generate(metadata *source.SiteMetadata) (int, error) {
 
 		_, err = g.store.Mkdir(_defaultFilePerm, g.ctx.SiteRoot, ce.RelativePath)
 		if err != nil {
-			return count, fmt.Errorf("unable to make new dir for content: %w", err)
+			return fmt.Errorf("unable to make new dir for content: %w", err)
 		}
 		content, err := g.converter.ToContent(fileData.Data, ce, metadata.ContentManifest)
 		if err != nil {
-			return count, fmt.Errorf("unable to convert to content: %w", err)
+			return fmt.Errorf("unable to convert to content: %w", err)
 		}
 
 		// write content to site
@@ -67,10 +65,8 @@ func (g *generator) Generate(metadata *source.SiteMetadata) (int, error) {
 		slog.Debug("Writing content", "path", outPath)
 		err = g.store.Write(outPath, content, _defaultFilePerm)
 		if err != nil {
-			return count, fmt.Errorf("failed to write content to file: %w", err)
+			return fmt.Errorf("failed to write content to file: %w", err)
 		}
-
-		count++
 	}
 
 	if g.ctx.MakePostMetadata && len(metadata.ContentManifest) > 0 {
@@ -80,7 +76,7 @@ func (g *generator) Generate(metadata *source.SiteMetadata) (int, error) {
 		g.createSitemapFile(metadata.SiteMapUrlMetadata)
 	}
 
-	return count, nil
+	return nil
 }
 
 func (g *generator) createSitemapFile(urls []source.SitemapUrl) {

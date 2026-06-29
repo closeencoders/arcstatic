@@ -236,21 +236,22 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 
 	usePrettyUrl := !m.ctx.FullHtmlPaths && ce.FileName != _indexHtmlFile
 	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
+	outFilename := strings.TrimSuffix(ce.ArtificialFileName, filepath.Ext(ce.ArtificialFileName))
 
 	if usePrettyUrl {
 		if usePermalink {
 			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink, _indexHtmlFile)
 			ce.RelativePath = path.Join(m.ctx.Base, subDir, ce.ContentMetadata.Permalink)
 		} else {
-			fileName := strings.TrimSuffix(ce.ArtificialFileName, filepath.Ext(ce.ArtificialFileName))
-			ce.OutputPath = filepath.Join(subDir, fileName, _indexHtmlFile)
-			ce.RelativePath = path.Join(m.ctx.Base, subDir, fileName)
+			// fileName := strings.TrimSuffix(ce.ArtificialFileName, filepath.Ext(ce.ArtificialFileName))
+			ce.OutputPath = filepath.Join(subDir, outFilename, _indexHtmlFile)
+			ce.RelativePath = path.Join(m.ctx.Base, subDir, outFilename)
 		}
 	} else {
 		if usePermalink {
 			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink)
 		} else {
-			ce.OutputPath = filepath.Join(subDir, ce.ArtificialFileName)
+			ce.OutputPath = filepath.Join(subDir, outFilename)
 		}
 		ce.RelativePath = path.Join(m.ctx.Base, subDir)
 	}
@@ -264,7 +265,7 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 
 	frontmatter, bodyData, err := SplitFileContent(fileData, m.ctx.FrontmatterToken)
 	if err != nil {
-		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileName)
+		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileName, "err", err)
 	}
 	frontmatter.Description = m.extractDescription(frontmatter, bodyData)
 

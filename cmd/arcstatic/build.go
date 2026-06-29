@@ -10,7 +10,7 @@ import (
 	"github.com/closeencoders/arcstatic/storage"
 )
 
-func executeBuild(ctx *config.SiteContext, store storage.Storage, path string) error {
+func executeBuild(ctx *config.SiteContext, store storage.Storage) error {
 
 	slog.Debug("loading metadata")
 	ml := source.NewMetadata(ctx, store)
@@ -26,7 +26,7 @@ func executeBuild(ctx *config.SiteContext, store storage.Storage, path string) e
 
 	c := *generate.NewConverter(ctx, *generate.NewMarkdown(ctx), *t)
 	sg := generate.NewGenerator(ctx, c, store)
-	if _, err := sg.Generate(metadata); err != nil {
+	if err := sg.Generate(metadata); err != nil {
 		return fmt.Errorf("failed to generate site: %w", err)
 	}
 

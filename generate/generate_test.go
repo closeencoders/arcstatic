@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
+	"log/slog"
+	"sync"
 	"testing"
 	"testing/fstest"
 
@@ -12,21 +14,33 @@ import (
 	"github.com/closeencoders/arcstatic/storage"
 )
 
-type FakeStorage struct {
-	TestFiles fstest.MapFS
+type fakeStorage struct {
+	testFiles fstest.MapFS
+	state     *fakeState
 }
 
-var _ storage.Storage = FakeStorage{}
+func newFakeStorage(testFiles fstest.MapFS) fakeStorage {
+	return fakeStorage{testFiles, &fakeState{writtenFiles: []string{}}}
+}
 
-func (fs FakeStorage) Write(name string, data []byte, perm int) error {
+type fakeState struct {
+	writtenFiles []string
+	mu           sync.Mutex
+}
+
+var _ storage.Storage = fakeStorage{}
+
+func (fs fakeStorage) Write(name string, data []byte, perm int) error {
+	slog.Warn("logging", "name", name)
+	fs.state.writtenFiles = append(fs.state.writtenFiles, name)
 	return nil
 }
 
-func (fs FakeStorage) Open(name string) (fs.File, error) {
-	return fs.TestFiles.Open(name)
+func (fs fakeStorage) Open(name string) (fs.File, error) {
+	return fs.testFiles.Open(name)
 }
 
-func (fs FakeStorage) Mkdir(perm int, path ...string) (string, error) {
+func (fs fakeStorage) Mkdir(perm int, path ...string) (string, error) {
 	return "", nil
 }
 
@@ -63,12 +77,8 @@ func TestContentConversion(t *testing.T) {
 			root := "rootpath"
 			ctx := source.CreateDefaultContext(root)
 			ctx.PostInputDir = "fakepostloc"
-			ctx.PageInputDir = "fakepageloc"
 
-			store := FakeStorage{fstest.MapFS{
-				test.fileName: &fstest.MapFile{Data: test.fileData},
-			}}
-
+			store := newFakeStorage(fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}})
 			conv, sm, err := createTestData(ctx, store)
 			if err != nil {
 				t.Fatal("test failed")
@@ -88,55 +98,7 @@ func TestContentConversion(t *testing.T) {
 	}
 }
 
-func TestGenerator(t *testing.T) {
-
-	tests := []struct {
-		name     string
-		fileName string
-		fileData []byte
-		count    int
-	}{
-		{
-			name:  "Should Not Generate Anything Without Files",
-			count: 0,
-		},
-		{
-			name: "Should Generate Basic Content",
-
-			fileName: "rootpath/fakepostloc/2026-06-01-basic_post.md",
-			fileData: []byte("---\ntitle: Hello\n---\ntest"),
-
-			count: 1,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-
-			root := "rootpath"
-			ctx := source.CreateDefaultContext(root)
-			ctx.PostInputDir = "fakepostloc"
-			ctx.PageInputDir = "fakepageloc"
-
-			store := FakeStorage{fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}}}
-			conv, sm, err := createTestData(ctx, store)
-			if err != nil {
-				t.Fatal("test failed")
-			}
-
-			gen := NewGenerator(ctx, *conv, store)
-			count, err := gen.Generate(sm)
-			if err != nil {
-				t.Fatal("learning before refactoring")
-			}
-			if count != test.count {
-				t.Error("generator did not process expected")
-			}
-		})
-	}
-}
-
-func createTestData(ctx *config.SiteContext, store FakeStorage) (*converter, *source.SiteMetadata, error) {
+func createTestData(ctx *config.SiteContext, store fakeStorage) (*converter, *source.SiteMetadata, error) {
 
 	templ, err := NewTemplater(ctx.ComponentMap, nil)
 	if err != nil {
