@@ -19,12 +19,12 @@ func executeBuild(ctx *config.SiteContext, store storage.Storage) error {
 		return fmt.Errorf("failed to load source material for site generation: %w", err)
 	}
 
-	t, err := generate.NewTemplater(ctx.ComponentMap, nil)
-	if err != nil {
+	tr := generate.TemplateRenderer{}
+	if err := tr.Load(ctx.ComponentMap, nil); err != nil {
 		return fmt.Errorf("failed to load components for templating: %w", err)
 	}
 
-	c := *generate.NewConverter(ctx, *generate.NewMarkdown(ctx), *t)
+	c := *generate.NewConverter(ctx, *generate.NewMarkdown(ctx), &tr)
 	sg := generate.NewGenerator(ctx, c, store)
 	if err := sg.Generate(metadata); err != nil {
 		return fmt.Errorf("failed to generate site: %w", err)

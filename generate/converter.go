@@ -13,13 +13,13 @@ import (
 )
 
 type converter struct {
-	ctx       *config.SiteContext
-	markdown  Markdown
-	templater templater
+	ctx      *config.SiteContext
+	markdown Markdown
+	renderer Renderer
 }
 
-func NewConverter(ctx *config.SiteContext, markdown Markdown, templater templater) *converter {
-	return &converter{ctx: ctx, markdown: markdown, templater: templater}
+func NewConverter(ctx *config.SiteContext, markdown Markdown, renderer Renderer) *converter {
+	return &converter{ctx: ctx, markdown: markdown, renderer: renderer}
 }
 
 func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, manifest source.Manifest) ([]byte, error) {
@@ -50,7 +50,7 @@ func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, man
 		renderMap["TOC"] = string(htmlResult.TOC)
 	}
 
-	body, err = c.templater.Render(renderMap, string(body))
+	body, err = c.renderer.Render(renderMap, string(body))
 	if err != nil {
 		return body, fmt.Errorf("unable to render body: %w", err)
 	}
@@ -61,7 +61,7 @@ func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, man
 	// re-render with template loaded only if template exists
 	if strings.TrimSpace(templateStr) != "" {
 		renderMap["Body"] = string(body)
-		body, err = c.templater.Render(renderMap, templateStr)
+		body, err = c.renderer.Render(renderMap, templateStr)
 		if err != nil {
 			return body, fmt.Errorf("unable to render body with template %s for entity %s: %w", templateId, content.FileName, err)
 		}

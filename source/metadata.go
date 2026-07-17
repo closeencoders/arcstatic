@@ -111,6 +111,12 @@ func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 		slices.SortFunc(metadata.SiteContentEntities, func(a, b *ContentEntity) int {
 			return b.ContentMetadata.Date.Compare(a.ContentMetadata.Date)
 		})
+		for k, s := range metadata.ContentManifest {
+			slices.SortFunc(s, func(a, b *ContentMetadata) int {
+				return b.Date.Compare(a.Date)
+			})
+			metadata.ContentManifest[k] = s
+		}
 	}
 
 	return &metadata, nil
@@ -192,21 +198,20 @@ func (m *metadata) updateManifest(root string, content *ContentEntity, metadata 
 
 		metadata.ContentManifest[m.ctx.DefaultType] = append(metadata.ContentManifest[m.ctx.DefaultType], cm)
 
-		m.sortTypes(cm, metadata.ContentManifest, cm.Tags...)
-		m.sortTypes(cm, metadata.ContentManifest, cm.Categories...)
+		m.appendTypes(cm, metadata.ContentManifest, cm.Tags...)
+		m.appendTypes(cm, metadata.ContentManifest, cm.Categories...)
 	}
 }
 
-func (m *metadata) sortTypes(cm *ContentMetadata, data map[string][]*ContentMetadata, types ...string) {
+func (m *metadata) appendTypes(cm *ContentMetadata, data map[string][]*ContentMetadata, types ...string) {
 	if len(types) == 0 {
 		return
 	}
 	for _, id := range types {
 		id = strings.TrimSpace(id)
-		if id == "" || id == m.ctx.DefaultType {
-			continue
+		if id != "" && id != m.ctx.DefaultType {
+			data[id] = append(data[id], cm)
 		}
-		data[id] = append(data[id], cm)
 	}
 }
 
@@ -236,7 +241,10 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 
 	usePrettyUrl := !m.ctx.FullHtmlPaths && ce.FileName != _indexHtmlFile
 	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
-	outFilename := strings.TrimSuffix(ce.ArtificialFileName, filepath.Ext(ce.ArtificialFileName))
+	outFilename := ce.ArtificialFileName
+	if ce.ArtificialFileName != _indexHtmlFile {
+		outFilename = strings.TrimSuffix(ce.ArtificialFileName, filepath.Ext(ce.ArtificialFileName))
+	}
 
 	if usePrettyUrl {
 		if usePermalink {

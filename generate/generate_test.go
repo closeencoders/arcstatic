@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"log/slog"
 	"sync"
 	"testing"
 	"testing/fstest"
@@ -31,7 +30,6 @@ type fakeState struct {
 var _ storage.Storage = fakeStorage{}
 
 func (fs fakeStorage) Write(name string, data []byte, perm int) error {
-	slog.Warn("logging", "name", name)
 	fs.state.writtenFiles = append(fs.state.writtenFiles, name)
 	return nil
 }
@@ -100,12 +98,13 @@ func TestContentConversion(t *testing.T) {
 
 func createTestData(ctx *config.SiteContext, store fakeStorage) (*converter, *source.SiteMetadata, error) {
 
-	templ, err := NewTemplater(ctx.ComponentMap, nil)
+	fr := &TemplateRenderer{}
+	err := fr.Load(ctx.ComponentMap, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load templater for test %w", err)
 	}
 
-	conv := NewConverter(ctx, *NewMarkdown(ctx), *templ)
+	conv := NewConverter(ctx, *NewMarkdown(ctx), fr)
 	ml := source.NewMetadata(ctx, store)
 	sm, err := ml.LoadMetadata(ctx.SiteRoot)
 	if err != nil {
