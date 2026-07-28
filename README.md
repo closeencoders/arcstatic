@@ -1,5 +1,9 @@
 # Arcstatic
+<div>
+
 [![coverage](https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/main/coverage.svg)](https://github.com/closeencoders/arcstatic/actions) [![Go Status](https://github.com/closeencoders/arcstatic/actions/workflows/go.yml/badge.svg)](https://github.com/closeencoders/arcstatic/actions)
+
+</div>
 
 Arcstatic is a simple static site generator practice/learning project. While not intended for a production environment, I do personally use it for my own projects.
 
