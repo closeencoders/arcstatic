@@ -9,17 +9,28 @@ import (
 	"github.com/closeencoders/arcstatic/source"
 )
 
-func TestGenerator(t *testing.T) {
+func TestBuildReachesGenerator(t *testing.T) {
 
 	tests := []struct {
-		name     string
-		fileName string
-		fileData []byte
-		count    int
+		name          string
+		fileName      string
+		fileData      []byte
+		count         int
+		allowAltFiles bool
 	}{
 		{
 			name:  "Should Not Generate Anything Without Files",
 			count: 0,
+		},
+		{
+			name: "Should Generate Basic Content And Alt Files",
+
+			fileName: "fakepostloc/2026-06-01-basic_post.md",
+			fileData: []byte("---\ntitle: Hello\n---\ntest"),
+
+			allowAltFiles: true,
+
+			count: 3,
 		},
 		{
 			name: "Should Generate Basic Content",
@@ -34,50 +45,57 @@ func TestGenerator(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			ctx := source.CreateDefaultContext("rootpath")
+			testRoot := "rootpath"
+			ctx := source.CreateDefaultContext(testRoot)
 			ctx.PostInputDir = "fakepostloc"
-			ctx.MakePostMetadata = false
-			ctx.MakeSitemapXML = false
+			ctx.MakePostMetadata = test.allowAltFiles
+			ctx.MakeSitemapXML = test.allowAltFiles
 
 			fileMap := fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}}
 			store := testutil.NewFakeStorage(fileMap)
-			err := executeBuild(ctx, store)
-			if err != nil {
+
+			if err := executeBuild(ctx, store); err != nil {
 				t.Fatalf("unexpected error while testing build output %v", err)
 			}
 
 			if len(store.State().WrittenFiles) != test.count {
 				t.Errorf("the correct number of files was not written to fake storage for test wnt: %d got: %d", test.count, len(store.State().WrittenFiles))
 			}
+			if ctx.SiteRoot != testRoot {
+				t.Errorf("context did not pickup the correct root location: wnt: %s got: %s", testRoot, ctx.SiteRoot)
+			}
+			if len(store.State().WrittenFiles) == 1 {
+				name := store.State().WrittenFiles[0]
+				if !strings.HasPrefix(name, ctx.SiteRoot) {
+					t.Errorf("config root location was not applied to content path: wnt: %s got %s", ctx.SiteRoot, name)
+				}
+			}
 		})
 	}
 }
 
-func TestOutputOverrideCmd(t *testing.T) {
+func TestOutputRootOverride(t *testing.T) {
 
 	ctx := source.CreateDefaultContext("rootpath")
+	ctx.SiteOutputRoot = "/some/other/location"
 	ctx.MakePostMetadata = false
 	ctx.MakeSitemapXML = false
 
 	ctx.PostInputDir = "fakepostloc"
 	fileMap := fstest.MapFS{
-		"fakepostloc/8-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 1995-01-01\n---\n# Header")},
+		"fakepostloc/2026-06-01-test-post.md": &fstest.MapFile{Data: []byte("---\ntitle: test post\n---\n# Header")},
 	}
-
-	ctx.SiteOutputRoot = "/some/other/location"
-	ctx.AllowNamelessDateSort = true
 
 	store := testutil.NewFakeStorage(fileMap)
-	err := executeBuild(ctx, store)
-	if err != nil {
+
+	if err := executeBuild(ctx, store); err != nil {
 		t.Fatalf("unexpected error while testing output override command %v", err)
 	}
+
 	if len(store.State().WrittenFiles) != 1 {
 		t.Fatalf("failed to write valid test file for override output test: len %d", len(store.State().WrittenFiles))
 	}
-
 	name := store.State().WrittenFiles[0]
-
 	if !strings.HasPrefix(name, ctx.SiteOutputRoot) {
 		t.Errorf("site root output location override for content failed: wnt: %s got %s", ctx.SiteOutputRoot, name)
 	}
