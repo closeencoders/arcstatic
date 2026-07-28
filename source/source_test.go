@@ -3,6 +3,7 @@ package source
 import (
 	"errors"
 	"path"
+	"path/filepath"
 	"testing"
 	"testing/fstest"
 
@@ -61,17 +62,37 @@ func TestLoadConfig(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			result, err := LoadSiteContext(baseDir, baseDir, testutil.NewFakeStorage(test.configFile))
+			ctx, err := LoadSiteContext(baseDir, baseDir, testutil.NewFakeStorage(test.configFile))
 			if err != nil {
 				if test.wantErr != nil && errors.Is(err, test.wantErr) {
 					return
 				}
 				t.Fatalf("unexpected error state while loading site context test: %v, wantErr: %v", err, test.wantErr)
 			}
-			testutil.AssertEqual(t, "SiteUrl", result.SiteURL, test.wantUrl)
-			testutil.AssertEqual(t, "PostInputDir", result.PostInputDir, test.wantDir)
+			testutil.AssertEqual(t, "SiteUrl", ctx.SiteURL, test.wantUrl)
+			testutil.AssertEqual(t, "PostInputDir", ctx.PostInputDir, test.wantDir)
 		})
 	}
+}
+
+func TestConfigOverrideCmdSettings(t *testing.T) {
+
+	testRoot := "testRoot"
+	configLoc := filepath.Join(testRoot, "arcconfig.yml")
+
+	c := fstest.MapFS{
+		configLoc: &fstest.MapFile{Data: []byte("site_output_root: /test/out")},
+	}
+
+	store := testutil.NewFakeStorage(c)
+
+	ctx, err := LoadSiteContext(testRoot, "testOut/ignored", store)
+	if err != nil {
+		t.Fatalf("Unexpected error while test config override")
+	}
+
+	testutil.AssertEqual(t, "SiteOutputRoot", ctx.SiteOutputRoot, "/test/out")
+
 }
 
 func TestTaxonomy(t *testing.T) {

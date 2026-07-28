@@ -19,11 +19,11 @@ func TestBuildReachesGenerator(t *testing.T) {
 		allowAltFiles bool
 	}{
 		{
-			name:  "Should Not Generate Anything Without Files",
+			name:  "Should Not Attempt To Write Anything Without Files",
 			count: 0,
 		},
 		{
-			name: "Should Generate Basic Content And Alt Files",
+			name: "Should Attempt To Write Basic Content And Alt Files",
 
 			fileName: "fakepostloc/2026-06-01-basic_post.md",
 			fileData: []byte("---\ntitle: Hello\n---\ntest"),
@@ -33,7 +33,7 @@ func TestBuildReachesGenerator(t *testing.T) {
 			count: 3,
 		},
 		{
-			name: "Should Generate Basic Content",
+			name: "Should Attempt To Write Basic Content",
 
 			fileName: "fakepostloc/2026-06-01-basic_post.md",
 			fileData: []byte("---\ntitle: Hello\n---\ntest"),

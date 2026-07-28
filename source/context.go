@@ -74,9 +74,9 @@ func createSiteContext(inPath string, outPath string, store fs.FS) (*config.Site
 		return nil, fmt.Errorf("failed to unmarshal configuration: %w", err)
 	}
 
-	// Override config with passed in if available
+	// Override config with passed in if available an not in config
 	outPath = strings.TrimSpace(outPath)
-	if outPath != "" && outPath != inPath {
+	if outPath != "" && ctx.SiteOutputRoot == "" && outPath != inPath {
 		ctx.SiteOutputRoot = outPath
 	}
 
