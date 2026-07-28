@@ -73,7 +73,7 @@ func TestOutputOverrideCmd(t *testing.T) {
 		t.Fatalf("unexpected error while testing output override command %v", err)
 	}
 	if len(store.State().WrittenFiles) != 1 {
-		t.Fatalf("failed to write valid test file for override output test")
+		t.Fatalf("failed to write valid test file for override output test: len %d", len(store.State().WrittenFiles))
 	}
 
 	name := store.State().WrittenFiles[0]
