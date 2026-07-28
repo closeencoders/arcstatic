@@ -1,9 +1,10 @@
 # Arcstatic
-<div>
-
-[![coverage](https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/main/coverage.svg)](https://github.com/closeencoders/arcstatic/actions) [![Go Status](https://github.com/closeencoders/arcstatic/actions/workflows/go.yml/badge.svg)](https://github.com/closeencoders/arcstatic/actions)
-
-</div>
+<table>
+  <tr>
+    <td><a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/main/coverage.svg" alt="coverage"></a></td>
+    <td><a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://github.com/closeencoders/arcstatic/actions/workflows/go.yml/badge.svg" alt="Go Status"></a></td>
+  </tr>
+</table>
 
 Arcstatic is a simple static site generator practice/learning project. While not intended for a production environment, I do personally use it for my own projects.
 
