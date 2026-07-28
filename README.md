@@ -11,12 +11,45 @@ Usage:
   arcstatic [flags]
 
 Flags:
-  -b, --build       builds static site from provided resources
-  -h, --help        help for arcstatic
-  -i, --in string   override default site context current working directory input location (default CWD)
-  -p, --port int    port number to file serve the site, if the serve command is not used, this is ignored (default 8000)
-  -s, --serve       serve static site from provided resources, currently only for testing
-  -v, --verbose     run verbose with debug logs
+  -b, --build        builds static site from provided resources
+  -h, --help         help for arcstatic
+  -i, --in string    override default site context current working directory input location, defaults to current location
+  -o, --out string   override default site context current working directory out location, defaults to current location
+  -p, --port int     port number to file serve the site, if the serve command is not used, this is ignored (default 8000)
+  -s, --serve        serve static site from provided resources, currently only for testing
+  -v, --verbose      run verbose with debug logs, this will attempt to override any config file settings
+```
+
+### Build
+
+The build command takes a directory of Markdown and HTML files and generates static HTML pages using Go templates and Goldmark. I don't have any way to add themes, override plugins, or Goldmark configuration (Yet).
+
+Default Location:
+```
+arcstatic --build
+arcstatic -b
+```
+
+Specified Location:
+```
+arcstatic --in ./raw/website --build
+arcstatic -i ./raw/website -b
+```
+
+### Serve
+
+This currently is ONLY meant for testing locally.
+
+Default Localhost Port 8080
+```
+arcstatic --in ./rendered/website --serve
+arcstatic -i ./rendered/website -s
+```
+
+Localhost Port Override 4000:
+```
+arcstatic --in ./rendered/website --port 4000 --serve
+arcstatic -i ./rendered/website -p 4000 -s
 ```
 
 ## Example Feed
