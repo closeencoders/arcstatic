@@ -78,7 +78,7 @@ func TestLoadConfig(t *testing.T) {
 func TestConfigOverrideCmdSettings(t *testing.T) {
 
 	testRoot := "testRoot"
-	configLoc := filepath.Join(testRoot, "arcconfig.yml")
+	configLoc := filepath.Join(testRoot, ConfigName)
 
 	c := fstest.MapFS{
 		configLoc: &fstest.MapFile{Data: []byte("site_output_root: /test/out")},
