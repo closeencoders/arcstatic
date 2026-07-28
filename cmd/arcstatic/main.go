@@ -13,12 +13,13 @@ import (
 )
 
 var (
-	inputLocation string
-	build         bool
-	serve         bool
-	port          int
-	verbose       bool
-	ctx           *config.SiteContext
+	inputLocation  string
+	outputLocation string
+	build          bool
+	serve          bool
+	port           int
+	verbose        bool
+	ctx            *config.SiteContext
 )
 
 var rootCmd = &cobra.Command{
@@ -30,7 +31,7 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 
-		config, err := source.LoadSiteContext(inputLocation, storage.NewOSFileStorage())
+		config, err := source.LoadSiteContext(inputLocation, outputLocation, storage.NewOSFileStorage())
 		if err != nil {
 			return fmt.Errorf("failed to load site context and configuration: %w", err)
 		}
@@ -63,7 +64,8 @@ func init() {
 	if err != nil {
 		defaultLocation = "."
 	}
-	rootCmd.Flags().StringVarP(&inputLocation, "in", "i", defaultLocation, "override default site context current working directory input location")
+	rootCmd.Flags().StringVarP(&inputLocation, "in", "i", defaultLocation, "override default site context current working directory input location, defaults to current location")
+	rootCmd.Flags().StringVarP(&outputLocation, "out", "o", defaultLocation, "override default site context current working directory out location, defaults to current location")
 	rootCmd.Flags().BoolVarP(&build, "build", "b", false, "builds static site from provided resources")
 	rootCmd.Flags().BoolVarP(&serve, "serve", "s", false, "serve static site from provided resources, currently only for testing")
 	rootCmd.Flags().IntVarP(&port, "port", "p", 8000, "port number to file serve the site, if the serve command is not used, this is ignored")

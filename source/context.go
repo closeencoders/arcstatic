@@ -18,33 +18,34 @@ const (
 	_pagesLoc      = "_pages"
 	_componentsLoc = "_components"
 	_templatesLoc  = "_templates"
-	_configName    = "config.yml"
 	_defaultUrl    = "http://yourdomain.com/#"
+	ConfigName     = "arcconfig.yml"
 )
 
 var (
 	errInvalidConfig = errors.New("invalid site config file format")
 )
 
-func LoadSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
+func LoadSiteContext(inPath string, outPath string, store fs.FS) (*config.SiteContext, error) {
 
-	ctx, err := createSiteContext(path, store)
+	ctx, err := createSiteContext(inPath, outPath, store)
+
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			slog.Warn("no valid configuration file found, using defaults", "path", path, "err", err)
-			ctx = CreateDefaultContext(path)
+			slog.Warn("no valid configuration file found, using defaults", "path", inPath, "err", err)
+			ctx = CreateDefaultContext(inPath)
 		} else {
 			return nil, fmt.Errorf("%w: %w", errInvalidConfig, err)
 		}
 	}
 
 	// TODO: Embedded defaults/themes
-	componentsPath := filepath.Join(path, _componentsLoc)
+	componentsPath := filepath.Join(inPath, _componentsLoc)
 	componentsMap, err := storage.LoadFilesToMap(componentsPath, store)
 	if err != nil {
 		slog.Warn("components not loaded, embedded defaults/themes are not implemented yet, content may not be rendered properly", "path", componentsPath)
 	}
-	templatesPath := filepath.Join(path, _templatesLoc)
+	templatesPath := filepath.Join(inPath, _templatesLoc)
 	templatesMap, err := storage.LoadFilesToMap(templatesPath, store)
 	if err != nil {
 		slog.Warn("templates not loaded, embedded defaults/themes are not implemented yet, content may not be rendered properly", "path", templatesPath)
@@ -55,11 +56,11 @@ func LoadSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 	return ctx, nil
 }
 
-func createSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
+func createSiteContext(inPath string, outPath string, store fs.FS) (*config.SiteContext, error) {
 
-	var configPath string = path
-	if !strings.HasSuffix(path, _configName) {
-		configPath = filepath.Join(path, _configName)
+	var configPath string = inPath
+	if !strings.HasSuffix(inPath, ConfigName) {
+		configPath = filepath.Join(inPath, ConfigName)
 	}
 
 	fileData, err := storage.LoadSiteFile(configPath, store)
@@ -68,18 +69,24 @@ func createSiteContext(path string, store fs.FS) (*config.SiteContext, error) {
 	}
 
 	// Create defaults which should be the minimal operational required data, then apply config file overrides.
-	ctx := CreateDefaultContext(path)
+	ctx := CreateDefaultContext(inPath)
 	if err := yaml.Unmarshal(fileData.Data, ctx); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal configuration: %w", err)
+	}
+
+	// Override config with passed in if available
+	outPath = strings.TrimSpace(outPath)
+	if outPath != "" && outPath != inPath {
+		ctx.SiteOutputRoot = outPath
 	}
 
 	return ctx, nil
 }
 
-func CreateDefaultContext(path string) *config.SiteContext {
-	ctx := config.NewContext(path)
+func CreateDefaultContext(root string) *config.SiteContext {
+	ctx := config.NewContext(root)
 	ctx.SiteURL = _defaultUrl
-	ctx.PostInputDir = filepath.Join(path, _postsLoc)
-	ctx.PageInputDir = filepath.Join(path, _pagesLoc)
+	ctx.PostInputDir = filepath.Join(root, _postsLoc)
+	ctx.PageInputDir = filepath.Join(root, _pagesLoc)
 	return ctx
 }

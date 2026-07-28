@@ -13,6 +13,8 @@ type SiteContext struct {
 
 	DefaultType string `yaml:"default_type"`
 
+	SiteOutputRoot string `yaml:"site_output_root"`
+
 	// FrontmatterToken marks the boundary of configuration blocks in source files (e.g., "---" or "+++").
 	FrontmatterToken string `yaml:"frontmatter_token"`
 	// PostInputDir is the absolute path to the raw posts folder, decoupled from output locations.

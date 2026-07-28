@@ -2,45 +2,19 @@ package source
 
 import (
 	"errors"
-	"io/fs"
 	"path"
 	"testing"
 	"testing/fstest"
 
 	"github.com/closeencoders/arcstatic/config"
-	"github.com/closeencoders/arcstatic/storage"
+	"github.com/closeencoders/arcstatic/internal/testutil"
 )
-
-type FakeStorage struct {
-	TestFiles fstest.MapFS
-}
-
-var _ storage.Storage = FakeStorage{}
-
-func (fs FakeStorage) Write(name string, data []byte, perm int) error {
-	return nil
-}
-
-func (fs FakeStorage) Open(name string) (fs.File, error) {
-	return fs.TestFiles.Open(name)
-}
-
-func (fs FakeStorage) Mkdir(perm int, path ...string) (string, error) {
-	return "", nil
-}
-
-func AssertEqual(t *testing.T, msg string, got, want any) {
-	t.Helper()
-	if got != want {
-		t.Errorf("%s:\nGot:[%v]\nWnt:[%v]", msg, got, want)
-	}
-}
 
 func TestLoadConfig(t *testing.T) {
 
 	const baseDir = "testlocation"
 	defaultPostLoc := path.Join(baseDir, _postsLoc)
-	configLoc := path.Join(baseDir, _configName)
+	configLoc := path.Join(baseDir, ConfigName)
 
 	tests := []struct {
 		name       string
@@ -87,15 +61,15 @@ func TestLoadConfig(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			result, err := LoadSiteContext(baseDir, FakeStorage{test.configFile})
+			result, err := LoadSiteContext(baseDir, baseDir, testutil.NewFakeStorage(test.configFile))
 			if err != nil {
 				if test.wantErr != nil && errors.Is(err, test.wantErr) {
 					return
 				}
 				t.Fatalf("unexpected error state while loading site context test: %v, wantErr: %v", err, test.wantErr)
 			}
-			AssertEqual(t, "SiteUrl", result.SiteURL, test.wantUrl)
-			AssertEqual(t, "PostInputDir", result.PostInputDir, test.wantDir)
+			testutil.AssertEqual(t, "SiteUrl", result.SiteURL, test.wantUrl)
+			testutil.AssertEqual(t, "PostInputDir", result.PostInputDir, test.wantDir)
 		})
 	}
 }
@@ -149,7 +123,7 @@ func TestTaxonomy(t *testing.T) {
 			ctx.AllowTaxonomyPaths = test.allowTaxonomyPaths
 
 			testFile := fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}}
-			ml := NewMetadata(ctx, FakeStorage{testFile})
+			ml := NewMetadata(ctx, testutil.NewFakeStorage(testFile))
 
 			result, err := ml.LoadMetadata(test.path)
 			if err != nil {
@@ -160,7 +134,7 @@ func TestTaxonomy(t *testing.T) {
 			}
 
 			ce := result.SiteContentEntities[0]
-			AssertEqual(t, "wrong type", ce.ContentMetadata.Type, test.wantType)
+			testutil.AssertEqual(t, "wrong type", ce.ContentMetadata.Type, test.wantType)
 
 			_, ok := result.ContentManifest[test.wantType]
 			if !ok {
@@ -168,7 +142,7 @@ func TestTaxonomy(t *testing.T) {
 			}
 
 			if test.allowTaxonomyPaths {
-				AssertEqual(t, "expected type in path", ce.OutputPath, test.wantOutPath)
+				testutil.AssertEqual(t, "expected type in path", ce.OutputPath, test.wantOutPath)
 			}
 		})
 	}
@@ -221,7 +195,7 @@ func TestInvalidMetadata(t *testing.T) {
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
 
-			ml := metadata{ctx: ctx, store: FakeStorage{test.fileData}}
+			ml := metadata{ctx: ctx, store: testutil.NewFakeStorage(test.fileData)}
 			result, err := ml.LoadMetadata(test.path)
 			if err != nil {
 
@@ -306,7 +280,7 @@ func TestLoadValidMetadata(t *testing.T) {
 			ctx.PageInputDir = "fakepageloc"
 			ctx.AllowNamelessDateSort = test.allowDateLoad
 
-			ml := metadata{ctx: ctx, store: FakeStorage{test.fileData}}
+			ml := metadata{ctx: ctx, store: testutil.NewFakeStorage(test.fileData)}
 			result, err := ml.LoadMetadata(test.path)
 			if err != nil {
 				t.Fatalf("source loading unexpected error = %v", err)
@@ -320,14 +294,14 @@ func TestLoadValidMetadata(t *testing.T) {
 			ce := result.SiteContentEntities[0]
 			if ce.InputPath == ctx.PostInputDir {
 				if ce.ContentMetadata.Type == "" {
-					AssertEqual(t, "type should have defaulted", ce.ContentMetadata.Type, ctx.DefaultType)
+					testutil.AssertEqual(t, "type should have defaulted", ce.ContentMetadata.Type, ctx.DefaultType)
 				} else {
-					AssertEqual(t, "type", ce.ContentMetadata.Type, test.wantType)
+					testutil.AssertEqual(t, "type", ce.ContentMetadata.Type, test.wantType)
 				}
 			}
-			AssertEqual(t, "template", ce.ContentMetadata.TemplateId, test.wantTemplate)
-			AssertEqual(t, "title", ce.ContentMetadata.Title, test.wantTitle)
-			AssertEqual(t, "path", ce.OutputPath, test.wantPath)
+			testutil.AssertEqual(t, "template", ce.ContentMetadata.TemplateId, test.wantTemplate)
+			testutil.AssertEqual(t, "title", ce.ContentMetadata.Title, test.wantTitle)
+			testutil.AssertEqual(t, "path", ce.OutputPath, test.wantPath)
 		})
 	}
 }
@@ -352,7 +326,7 @@ func TestNoPrefixLoadOrder(t *testing.T) {
 	ctx.PostInputDir = "fakepostloc"
 	ctx.AllowNamelessDateSort = true
 
-	ml := metadata{ctx: ctx, store: FakeStorage{files}}
+	ml := metadata{ctx: ctx, store: testutil.NewFakeStorage(files)}
 	result, err := ml.LoadMetadata("fakepostloc")
 	if err != nil {
 		t.Fatalf("source loading unexpected error = %v", err)

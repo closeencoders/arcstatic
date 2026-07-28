@@ -6,7 +6,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/closeencoders/arcstatic/config"
 	"github.com/closeencoders/arcstatic/source"
@@ -15,7 +17,7 @@ import (
 
 const (
 	_defaultFilePerm   = 0755
-	_postsMetadataFile = "data/posts.json"
+	_postsMetadataFile = "posts.json"
 	_sitemapXmlFile    = "sitemap.xml"
 	_sitemapXmlMeta    = "http://www.sitemaps.org/schemas/sitemap/0.9"
 )
@@ -38,8 +40,13 @@ func NewGenerator(ctx *config.SiteContext, converter converter, store storage.St
 
 func (g *generator) Generate(metadata *source.SiteMetadata) error {
 
+	baseOutPath := g.ctx.SiteRoot
+	if g.ctx.SiteOutputRoot != "" {
+		baseOutPath = g.ctx.SiteOutputRoot
+	}
+
 	slog.Info("generating site", "size", len(metadata.SiteContentEntities))
-	if _, err := g.store.Mkdir(_defaultFilePerm, g.ctx.SiteRoot, g.ctx.PostOutputDir); err != nil {
+	if err := g.store.Mkdir(_defaultFilePerm, baseOutPath, g.ctx.PostOutputDir); err != nil {
 		return fmt.Errorf("failed to create content output dir: %w", err)
 	}
 
@@ -51,7 +58,10 @@ func (g *generator) Generate(metadata *source.SiteMetadata) error {
 			continue
 		}
 
-		_, err = g.store.Mkdir(_defaultFilePerm, g.ctx.SiteRoot, ce.RelativePath)
+		relativePath := filepath.Join(baseOutPath, ce.RelativePath)
+		writePath := filepath.Join(baseOutPath, ce.OutputPath)
+
+		err = g.store.Mkdir(_defaultFilePerm, relativePath)
 		if err != nil {
 			return fmt.Errorf("unable to make new dir for content: %w", err)
 		}
@@ -59,60 +69,97 @@ func (g *generator) Generate(metadata *source.SiteMetadata) error {
 		if err != nil {
 			return fmt.Errorf("unable to convert to content: %w", err)
 		}
-
-		// write content to site
-		outPath := filepath.Join(g.ctx.SiteRoot, ce.OutputPath)
-		slog.Debug("Writing content", "path", outPath)
-		err = g.store.Write(outPath, content, _defaultFilePerm)
+		slog.Debug("Writing content", "path", writePath)
+		err = g.store.Write(writePath, content, _defaultFilePerm)
 		if err != nil {
 			return fmt.Errorf("failed to write content to file: %w", err)
 		}
 	}
 
 	if g.ctx.MakePostMetadata && len(metadata.ContentManifest) > 0 {
-		g.createMetadataFile(metadata.ContentManifest[g.ctx.DefaultType])
+		g.createMetadataFile(baseOutPath, metadata.ContentManifest[g.ctx.DefaultType])
 	}
 	if g.ctx.MakeSitemapXML && len(metadata.SiteMapUrlMetadata) > 0 {
-		g.createSitemapFile(metadata.SiteMapUrlMetadata)
+		g.createSitemapFile(baseOutPath, metadata.SiteMapUrlMetadata)
+	}
+	if g.ctx.SiteOutputRoot != "" && g.ctx.SiteOutputRoot != g.ctx.SiteRoot {
+		g.copyAssets(baseOutPath)
 	}
 
 	return nil
 }
 
-func (g *generator) createSitemapFile(urls []source.SitemapUrl) {
+func (g *generator) copyAssets(basePath string) error {
 
+	slog.Debug("copying assets", "path", basePath)
+	entries, err := os.ReadDir(g.ctx.SiteRoot)
+	if err != nil {
+		return err
+	}
+
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "_") {
+			continue
+		}
+		in := filepath.Join(g.ctx.SiteRoot, e.Name())
+		out := filepath.Join(basePath, e.Name())
+
+		if e.IsDir() {
+			err := g.store.CopyDir(_defaultFilePerm, in, out)
+			if err != nil {
+				slog.Error("Failed to copy dir to export location", "error", err)
+			}
+		} else {
+			err := g.store.Copy(_defaultFilePerm, in, out)
+			if err != nil {
+				slog.Error("Failed to copy file to export location", "error", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (g *generator) createSitemapFile(basePath string, urls []source.SitemapUrl) {
+
+	slog.Debug("creating sitemap file", "path", basePath)
 	siteMapUrlSet := Urlset{
 		Xmlns:   _sitemapXmlMeta,
 		XMLName: xml.Name{Local: "xmlns"},
 		Urls:    urls,
 	}
 	var buf bytes.Buffer
-	buf.WriteString(xml.Header)
-
-	err := xml.NewEncoder(&buf).Encode(siteMapUrlSet)
-	if err != nil {
+	if _, err := buf.WriteString(xml.Header); err != nil {
+		slog.Error("failed to write site xml header to buffer", "error", err)
+		return
+	}
+	if err := xml.NewEncoder(&buf).Encode(siteMapUrlSet); err != nil {
 		slog.Error("failed to encode site xml", "error", err)
 		return
 	}
-
-	siteXmlMapPath := filepath.Join(g.ctx.SiteRoot, _sitemapXmlFile)
+	siteXmlMapPath := filepath.Join(basePath, _sitemapXmlFile)
 	if err := g.store.Write(siteXmlMapPath, buf.Bytes(), _defaultFilePerm); err != nil {
 		slog.Error("failed to write site xml", "error", err)
+		return
 	}
 }
 
-func (g *generator) createMetadataFile(contentMetadata []*source.ContentMetadata) {
+func (g *generator) createMetadataFile(basePath string, contentMetadata []*source.ContentMetadata) {
 
-	// TODO: handle err appropriately
-	g.store.Mkdir(_defaultFilePerm, g.ctx.SiteRoot, "data")
-	postMetadataPath := filepath.Join(g.ctx.SiteRoot, _postsMetadataFile)
-
+	slog.Debug("creating metadata file", "path", basePath)
+	postMetadataPath := filepath.Join(basePath, "data")
+	err := g.store.Mkdir(_defaultFilePerm, postMetadataPath)
+	if err != nil {
+		slog.Error("failed to make metadata file location", "dir", postMetadataPath, "error", err)
+		return
+	}
 	data, err := json.Marshal(contentMetadata)
 	if err != nil {
 		slog.Error("failed to Marshal metadata file", "file", _postsMetadataFile, "error", err)
 		return
 	}
-	if err := g.store.Write(postMetadataPath, data, _defaultFilePerm); err != nil {
+	postMetaFile := filepath.Join(postMetadataPath, _postsMetadataFile)
+	if err := g.store.Write(postMetaFile, data, _defaultFilePerm); err != nil {
 		slog.Error("failed to write post json metadata to file", "path", postMetadataPath, "error", err)
 	}
 }
