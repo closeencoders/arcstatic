@@ -1,4 +1,5 @@
 # Arcstatic
+
 <table>
   <tr>
     <td><a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/main/coverage.svg" alt="coverage"></a></td>
@@ -11,6 +12,7 @@ Arcstatic is a simple static site generator practice/learning project. While not
 (documentation work in progress, this code is not fully released or completed yet)
 
 ## Example Commands
+
 ```
 Usage:
   arcstatic [flags]
@@ -58,6 +60,7 @@ arcstatic -i ./rendered/website -p 4000 -s
 ```
 
 ## Example Feed
+
 ```html
 <div ... >
 {{range .blog}}
@@ -84,7 +87,7 @@ arcstatic -i ./rendered/website -p 4000 -s
 </div>
 ```
 
-## Example Config
+## Example Configuration
 
 Add an `arcconfig.yml` file in the root of the project.
 
