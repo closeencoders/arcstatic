@@ -81,7 +81,7 @@ arcstatic -i ./rendered/website -p 4000 -s
 
 ## Example Config
 
-Currently just a config.yml file in the root of the project.
+Add an `arcconfig.yml` file in the root of the project.
 
 ```yaml
 post_input_dir: /override/input/post/location
