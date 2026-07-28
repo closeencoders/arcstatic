@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -33,8 +34,7 @@ func TestGenerator(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			root := "rootpath"
-			ctx := source.CreateDefaultContext(root)
+			ctx := source.CreateDefaultContext("rootpath")
 			ctx.PostInputDir = "fakepostloc"
 			ctx.MakePostMetadata = false
 			ctx.MakeSitemapXML = false
@@ -43,13 +43,43 @@ func TestGenerator(t *testing.T) {
 			store := testutil.NewFakeStorage(fileMap)
 			err := executeBuild(ctx, store)
 			if err != nil {
-				t.Fatalf("learning before refactoring %v", err)
+				t.Fatalf("unexpected error while testing build output %v", err)
 			}
 
 			if len(store.State().WrittenFiles) != test.count {
 				t.Errorf("the correct number of files was not written to fake storage for test wnt: %d got: %d", test.count, len(store.State().WrittenFiles))
 			}
 		})
+	}
+}
+
+func TestOutputOverrideCmd(t *testing.T) {
+
+	ctx := source.CreateDefaultContext("rootpath")
+	ctx.MakePostMetadata = false
+	ctx.MakeSitemapXML = false
+
+	ctx.PostInputDir = "fakepostloc"
+	fileMap := fstest.MapFS{
+		"fakepostloc/8-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 1995-01-01\n---\n# Header")},
+	}
+
+	ctx.SiteOutputRoot = "/some/other/location"
+	ctx.AllowNamelessDateSort = true
+
+	store := testutil.NewFakeStorage(fileMap)
+	err := executeBuild(ctx, store)
+	if err != nil {
+		t.Fatalf("unexpected error while testing output override command %v", err)
+	}
+	if len(store.State().WrittenFiles) != 1 {
+		t.Fatalf("failed to write valid test file for override output test")
+	}
+
+	name := store.State().WrittenFiles[0]
+
+	if !strings.HasPrefix(name, ctx.SiteOutputRoot) {
+		t.Errorf("site root output location override for content failed: wnt: %s got %s", ctx.SiteOutputRoot, name)
 	}
 }
 
@@ -77,8 +107,7 @@ func TestNoPrefixWriteOrder(t *testing.T) {
 		"rootpath/8-post/index.html",
 	}
 
-	root := "rootpath"
-	ctx := source.CreateDefaultContext(root)
+	ctx := source.CreateDefaultContext("rootpath")
 	ctx.PostInputDir = "fakepostloc"
 	ctx.MakePostMetadata = false
 	ctx.MakeSitemapXML = false
