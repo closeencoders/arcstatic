@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"io/fs"
+	"os"
 	"testing"
 	"testing/fstest"
 
@@ -15,11 +16,22 @@ type FakeStorage struct {
 
 // TODO:
 type FakeState struct {
+	CurrentWd    string
 	WrittenFiles []string
 }
 
-func NewFakeStorage(testFiles fstest.MapFS) FakeStorage {
-	return FakeStorage{testFiles, &FakeState{WrittenFiles: []string{}}}
+func NewFakeStorage(testFiles fstest.MapFS) (FakeStorage, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return FakeStorage{}, err
+	}
+	return FakeStorage{
+		testFiles,
+		&FakeState{
+			CurrentWd:    wd,
+			WrittenFiles: []string{},
+		},
+	}, nil
 }
 
 func NewFakeStorageWithState(testFiles fstest.MapFS, state *FakeState) FakeStorage {
@@ -51,6 +63,10 @@ func (fs FakeStorage) CopyDir(perm int, from string, to string) error {
 
 func (fs FakeStorage) Copy(perm int, from string, to string) error {
 	return nil
+}
+
+func (fs FakeStorage) GetWd() (string, error) {
+	return fs.state.CurrentWd, nil
 }
 
 func AssertEqual(t *testing.T, msg string, got, want any) {

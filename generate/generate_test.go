@@ -44,7 +44,7 @@ func TestContentConversion(t *testing.T) {
 			ctx := source.CreateDefaultContext("rootpath")
 			ctx.PostInputDir = "fakepostloc"
 
-			store := testutil.NewFakeStorage(fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}})
+			store, _ := testutil.NewFakeStorage(fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}})
 			conv, sm, err := createTestData(ctx, store)
 			if err != nil {
 				t.Fatal("test failed")

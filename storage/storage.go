@@ -15,6 +15,7 @@ type Storage interface {
 	Mkdir(fileMode int, path ...string) error
 	CopyDir(perm int, from string, to string) error
 	Copy(perm int, from string, to string) error
+	GetWd() (string, error)
 }
 
 type osFileStorage struct{}
@@ -101,4 +102,21 @@ func (f osFileStorage) Copy(perm int, from string, to string) error {
 	}
 
 	return nil
+}
+
+func (f osFileStorage) GetWd() (string, error) {
+	return os.Getwd()
+}
+
+func ToCleanAbs(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" || !strings.HasPrefix(path, ".") {
+		return path, nil
+	}
+	path = filepath.Clean(path)
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return path, nil
 }

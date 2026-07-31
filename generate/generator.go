@@ -82,32 +82,17 @@ func (g *generator) Generate(metadata *source.SiteMetadata) error {
 	if g.ctx.MakeSitemapXML && len(metadata.SiteMapUrlMetadata) > 0 {
 		g.createSitemapFile(baseOutPath, metadata.SiteMapUrlMetadata)
 	}
-	if !isSameLoc(g.ctx.SiteOutputRoot, g.ctx.SiteRoot) {
-		g.copyAssets(baseOutPath)
+	if g.ctx.SiteOutputRoot != "" && g.ctx.SiteRoot != "" && g.ctx.SiteOutputRoot != g.ctx.SiteRoot {
+		// g.copyAssets(baseOutPath)
+		slog.Info("copy attempt")
 	}
 
 	return nil
 }
 
-func isSameLoc(one string, two string) bool {
-	// attempt to avoid deep eval
-	if one != "" && two != "" && one == two {
-		return true
-	}
-	oneAbs, err := filepath.Abs(one)
-	if err != nil {
-		return false
-	}
-	twoAbs, err := filepath.Abs(two)
-	if err != nil {
-		return false
-	}
-	return oneAbs == twoAbs
-}
-
 func (g *generator) copyAssets(basePath string) error {
 
-	slog.Debug("copying assets", "path", basePath, "out", g.ctx.SiteOutputRoot)
+	slog.Debug("copying assets", "from", basePath, "to", g.ctx.SiteOutputRoot)
 	entries, err := os.ReadDir(g.ctx.SiteRoot)
 	if err != nil {
 		return err

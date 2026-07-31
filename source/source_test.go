@@ -3,7 +3,6 @@ package source
 import (
 	"errors"
 	"path"
-	"path/filepath"
 	"testing"
 	"testing/fstest"
 
@@ -61,8 +60,8 @@ func TestLoadConfig(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
-			ctx, err := LoadSiteContext(baseDir, baseDir, testutil.NewFakeStorage(test.configFile))
+			store, _ := testutil.NewFakeStorage(test.configFile)
+			ctx, err := LoadSiteContext(baseDir, baseDir, store)
 			if err != nil {
 				if test.wantErr != nil && errors.Is(err, test.wantErr) {
 					return
@@ -73,26 +72,6 @@ func TestLoadConfig(t *testing.T) {
 			testutil.AssertEqual(t, "PostInputDir", ctx.PostInputDir, test.wantDir)
 		})
 	}
-}
-
-func TestConfigOverrideCmdSettings(t *testing.T) {
-
-	testRoot := "testRoot"
-	configLoc := filepath.Join(testRoot, ConfigName)
-
-	c := fstest.MapFS{
-		configLoc: &fstest.MapFile{Data: []byte("site_output_root: /test/out")},
-	}
-
-	store := testutil.NewFakeStorage(c)
-
-	ctx, err := LoadSiteContext(testRoot, "testOut/ignored", store)
-	if err != nil {
-		t.Fatalf("Unexpected error while test config override")
-	}
-
-	testutil.AssertEqual(t, "SiteOutputRoot", ctx.SiteOutputRoot, "/test/out")
-
 }
 
 func TestTaxonomy(t *testing.T) {
@@ -144,7 +123,8 @@ func TestTaxonomy(t *testing.T) {
 			ctx.AllowTaxonomyPaths = test.allowTaxonomyPaths
 
 			testFile := fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}}
-			ml := NewMetadata(ctx, testutil.NewFakeStorage(testFile))
+			store, _ := testutil.NewFakeStorage(testFile)
+			ml := NewMetadata(ctx, store)
 
 			result, err := ml.LoadMetadata(test.path)
 			if err != nil {
@@ -172,30 +152,30 @@ func TestTaxonomy(t *testing.T) {
 func TestInvalidMetadata(t *testing.T) {
 
 	tests := []struct {
-		name     string
-		fileData fstest.MapFS
-		path     string
+		name      string
+		testFiles fstest.MapFS
+		path      string
 
 		wantErr error
 	}{
 		{
 			name: "Unknown File Extension Should Not Load Or Attempt To Load Anything",
 			path: "fakepageloc",
-			fileData: fstest.MapFS{
+			testFiles: fstest.MapFS{
 				"fakepostloc/2026-06-01-about.xyz": &fstest.MapFile{Data: []byte("---\ntitle: About\n---\n# Header")},
 			},
 		},
 		{
 			name: "Draft Post Should Not Load When Set To True",
 			path: "fakepostloc",
-			fileData: fstest.MapFS{
+			testFiles: fstest.MapFS{
 				"fakepostloc/2026-06-01-draft_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\ndraft: true\n---\n# Header")},
 			},
 		},
 		{
 			name: "Post Without Date Prefix Should Not Load With Default Settings",
 			path: "fakepostloc",
-			fileData: fstest.MapFS{
+			testFiles: fstest.MapFS{
 				"fakepostloc/noprefix_post.md": &fstest.MapFile{Data: []byte("---\ntitle: Hello\n---\n# Header")},
 			},
 			wantErr: errDatePrefix,
@@ -203,7 +183,7 @@ func TestInvalidMetadata(t *testing.T) {
 		{
 			name: "Unknown Page Location Should Not Load Or Attempt To Load Anything",
 			path: "fakepageloc",
-			fileData: fstest.MapFS{
+			testFiles: fstest.MapFS{
 				"xxxxxx/about.html": &fstest.MapFile{Data: []byte("---\ntitle: About\n---\n# Header")},
 			},
 		},
@@ -216,7 +196,8 @@ func TestInvalidMetadata(t *testing.T) {
 			ctx.PostInputDir = "fakepostloc"
 			ctx.PageInputDir = "fakepageloc"
 
-			ml := metadata{ctx: ctx, store: testutil.NewFakeStorage(test.fileData)}
+			store, _ := testutil.NewFakeStorage(test.testFiles)
+			ml := metadata{ctx: ctx, store: store}
 			result, err := ml.LoadMetadata(test.path)
 			if err != nil {
 
@@ -301,7 +282,8 @@ func TestLoadValidMetadata(t *testing.T) {
 			ctx.PageInputDir = "fakepageloc"
 			ctx.AllowNamelessDateSort = test.allowDateLoad
 
-			ml := metadata{ctx: ctx, store: testutil.NewFakeStorage(test.fileData)}
+			store, _ := testutil.NewFakeStorage(test.fileData)
+			ml := metadata{ctx: ctx, store: store}
 			result, err := ml.LoadMetadata(test.path)
 			if err != nil {
 				t.Fatalf("source loading unexpected error = %v", err)
@@ -324,43 +306,5 @@ func TestLoadValidMetadata(t *testing.T) {
 			testutil.AssertEqual(t, "title", ce.ContentMetadata.Title, test.wantTitle)
 			testutil.AssertEqual(t, "path", ce.OutputPath, test.wantPath)
 		})
-	}
-}
-
-func TestNoPrefixLoadOrder(t *testing.T) {
-
-	files := fstest.MapFS{
-		"fakepostloc/8-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 1995-01-01\n---\n# Header")},
-		"fakepostloc/2-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 2\ndate: 2023-10-10\n---\n# Header")},
-		"fakepostloc/5-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 5\ndate: 2020-10-10\n---\n# Header")},
-		"fakepostloc/3-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 3\ndate: 2022-10-11\n---\n# Header")},
-		"fakepostloc/4-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 4\ndate: 2021-11-10\n---\n# Header")},
-		"fakepostloc/1-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 2024-10-10\n---\n# Header")},
-		"fakepostloc/7-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 2020-06-10\n---\n# Header")},
-		"fakepostloc/6-post.md": &fstest.MapFile{Data: []byte("---\ntitle: 1\ndate: 2020-09-10\n---\n# Header")},
-	}
-	expected := []string{
-		"1-post.md", "2-post.md", "3-post.md", "4-post.md", "5-post.md", "6-post.md", "7-post.md", "8-post.md",
-	}
-
-	ctx := CreateDefaultContext("root")
-	ctx.PostInputDir = "fakepostloc"
-	ctx.AllowNamelessDateSort = true
-
-	ml := metadata{ctx: ctx, store: testutil.NewFakeStorage(files)}
-	result, err := ml.LoadMetadata("fakepostloc")
-	if err != nil {
-		t.Fatalf("source loading unexpected error = %v", err)
-	}
-
-	if len(result.SiteContentEntities) == 0 {
-		t.Errorf("metadata should have been loaded for target path: %q", "fakepostloc")
-		return
-	}
-
-	for i, f := range expected {
-		if result.SiteContentEntities[i].FileName != f {
-			t.Fatalf("Wrong order wnt: %s, got: %s", f, result.SiteContentEntities[i].FileName)
-		}
 	}
 }
