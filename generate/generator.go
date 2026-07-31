@@ -83,8 +83,7 @@ func (g *generator) Generate(metadata *source.SiteMetadata) error {
 		g.createSitemapFile(baseOutPath, metadata.SiteMapUrlMetadata)
 	}
 	if g.ctx.SiteOutputRoot != "" && g.ctx.SiteRoot != "" && g.ctx.SiteOutputRoot != g.ctx.SiteRoot {
-		// g.copyAssets(baseOutPath)
-		slog.Info("copy attempt")
+		g.copyAssets(baseOutPath)
 	}
 
 	return nil

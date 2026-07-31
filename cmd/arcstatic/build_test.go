@@ -213,9 +213,6 @@ func TestWithDatePrefixWriteOrder(t *testing.T) {
 	ctx.MakePostMetadata = false
 	ctx.MakeSitemapXML = false
 
-	// invokes a sort function mid exec by the provided frontmatter date instead of the file name.
-	// ctx.AllowNamelessDateSort = true
-
 	store, _ := testutil.NewFakeStorage(files)
 	err := executeBuild(ctx, store)
 	if err != nil {
