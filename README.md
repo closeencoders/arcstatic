@@ -14,15 +14,13 @@ Arcstatic is a simple static site generator practice/learning project. While not
 ## Example Commands
 
 ```
-Arcstatic is a simple static site generator
-
 Usage:
   arcstatic [flags]
 
 Flags:
   -b, --build        builds static site from provided resources
   -h, --help         help for arcstatic
-  -i, --in string    override default site context current working directory input location, defaults to current location (default "your/loc")
+  -i, --in string    override default site context current working directory input location, defaults to current location
   -o, --out string   override default site context current working directory out location, defaults to input location
   -p, --port int     port number to file serve the site, if the serve command is not used, this is ignored (default 8000)
   -s, --serve        serve static site from provided resources, currently only for testing
