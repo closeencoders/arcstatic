@@ -9,19 +9,21 @@
 
 Arcstatic is a simple static site generator practice/learning project. While not intended for a production environment, I do personally use it for my own projects.
 
-(documentation work in progress, this code is not fully released or completed yet)
+**(Documentation work in progress, this code is not fully released or completed yet)**
 
 ## Example Commands
 
 ```
+Arcstatic is a simple static site generator
+
 Usage:
   arcstatic [flags]
 
 Flags:
   -b, --build        builds static site from provided resources
   -h, --help         help for arcstatic
-  -i, --in string    override default site context current working directory input location, defaults to current location
-  -o, --out string   override default site context current working directory out location, defaults to current location
+  -i, --in string    override default site context current working directory input location, defaults to current location (default "your/loc")
+  -o, --out string   override default site context current working directory out location, defaults to input location
   -p, --port int     port number to file serve the site, if the serve command is not used, this is ignored (default 8000)
   -s, --serve        serve static site from provided resources, currently only for testing
   -v, --verbose      run verbose with debug logs, this will attempt to override any config file settings
@@ -29,7 +31,7 @@ Flags:
 
 ### Build
 
-The build command takes a directory of Markdown and HTML files and generates static HTML pages using Go templates and Goldmark. I don't have any way to add themes, override plugins, or Goldmark configuration (Yet).
+The build command takes a directory of Markdown and HTML files and generates static HTML pages using Go templates and Goldmark. Currently, there is no way to add themes, override plugins, or customize Goldmark configuration (yet). Additionally, the process does not copy assets unless explicitly configured to do so, preventing large files and images from being duplicated without a mechanism to avoid duplicate copies.
 
 Default Location:
 ```
@@ -47,7 +49,7 @@ arcstatic -i ./raw/website -b
 
 This currently is ONLY meant for testing locally.
 
-Default Localhost Port 8080
+Default Localhost Port 8000
 ```
 arcstatic --in ./rendered/website --serve
 arcstatic -i ./rendered/website -s
@@ -59,10 +61,33 @@ arcstatic --in ./rendered/website --port 4000 --serve
 arcstatic -i ./rendered/website -p 4000 -s
 ```
 
+## Example Configuration
+
+Create an `arcconfig.yml` file in the root directory of your project:
+
+```yaml
+# Overrides the default post content directory.
+# This avoids having to specify -i /your/location on the command line and allows content to be stored separately from the project.
+post_input_dir: /override/input/post/location
+
+# The base URL of your site.
+site_url: https://yourdomain.com
+
+# Makes table-of-contents data available for content with detectable headings.
+make_toc: true
+
+# Assigns a default type to all rendered content.
+# This value can be used for querying and looping.
+default_type: blog
+```
+
 ## Example Feed
+
+The engine uses Goldmark and Go’s built-in template functionality to remain simple and broadly compatible.
 
 ```html
 <div ... >
+<!-- Represents the default_type override in example configuration -->
 {{range .blog}}
 <article>
     <a ... href="{{.Url}}">
@@ -87,13 +112,39 @@ arcstatic -i ./rendered/website -p 4000 -s
 </div>
 ```
 
-## Example Configuration
+## Example Page Template
 
-Add an `arcconfig.yml` file in the root of the project.
+```html
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
 
-```yaml
-post_input_dir: /override/input/post/location
-site_url: https://yourdomain.com
+    <!-- Multiline Conditions -->
+    {{ if .Metadata.Image }}
+    <link rel="preload" as="image" href="{{ .Metadata.Image }}" fetchpriority="high">
+    {{ end }}
 
-make_toc: true
+    <!-- Pull directly from the metadata of the page frontmatter -->
+    <title>{{.Metadata.Title}}</title>
+    <meta name="description" content="{{.Metadata.MetaDescription}}">
+
+    <meta property="og:title" content="{{.Metadata.Title}}">
+    <meta property="og:description" content="{{.Metadata.MetaDescription}}">
+    <meta property="og:url" content="{{.CanonicalURL}}">
+    <meta property="og:image" content="{{ if .Metadata.Image }}{{ .Metadata.Image }}{{ else }}/assets/img/logo.svg{{ end }}">
+    <meta property="og:image:alt" content="{{.Metadata.Title}}">
+
+    <meta name="twitter:title" content="{{.Metadata.Title}}">
+    <meta name="twitter:description" content="{{.Metadata.MetaDescription}}">
+</head>
+<body>
+    <!-- Explicit use of specific template by file name -->
+    {{template "header.html" .}}
+    <main class="wrap">
+        {{.Body | safeHTML}}
+    </main>
+    {{template "footer.html" .}}
+</body>
+</html>
 ```
