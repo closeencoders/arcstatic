@@ -29,7 +29,7 @@ Flags:
 
 ### Build
 
-The build command takes a directory of Markdown and HTML files and generates static HTML pages using Go templates and Goldmark. Currently, there is no way to add themes, override plugins, or customize Goldmark configuration (yet). Additionally, the process does not copy assets unless explicitly configured to do so, preventing large files and images from being duplicated without a mechanism to avoid duplicate copies.
+The build command converts Markdown and HTML files into static pages using Go templates and Goldmark. Themes, plugin overrides, and custom Goldmark configuration are not yet supported, and assets are copied only when explicitly configured to avoid unnecessary duplication.
 
 Default Location:
 ```
@@ -81,7 +81,7 @@ default_type: blog
 
 ## Example Feed
 
-The engine uses Goldmark and Go’s built-in template functionality to remain simple and broadly compatible.
+The engine uses Goldmark and Go’s built-in templating to loop over entities while remaining simple and broadly compatible.
 
 ```html
 <div ... >
