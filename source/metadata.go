@@ -275,7 +275,11 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 	if err != nil {
 		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileName, "err", err)
 	}
+
 	frontmatter.Description = m.extractDescription(frontmatter, bodyData)
+	if strings.TrimSpace(frontmatter.MetaDescription) == "" {
+		frontmatter.MetaDescription = frontmatter.Description
+	}
 
 	artificialFileName := whitelistRegex.ReplaceAllString(fileName, "-")
 	artificialFileName = strings.Join(strings.Fields(strings.ToLower(artificialFileName)), "-")
@@ -336,12 +340,8 @@ func truncateBytes(data []byte, limit int) string {
 	if len(data) == 0 {
 		return ""
 	}
-	end := limit
-	if len(data) < limit {
-		end = len(data)
-	}
+	end := min(len(data), limit)
 	summary := strings.Join(strings.Fields(string(data[:end])), " ")
-
 	if len(data) > limit {
 		summary += "..."
 	}

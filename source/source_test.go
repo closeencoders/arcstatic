@@ -228,6 +228,9 @@ func TestLoadValidMetadata(t *testing.T) {
 		wantTemplate string
 		wantType     string
 
+		wantDesc     string
+		wantMetaDesc string
+
 		allowDateLoad bool
 	}{
 		{
@@ -272,6 +275,15 @@ func TestLoadValidMetadata(t *testing.T) {
 			wantPath:     "about/index.html",
 			wantTemplate: "page.html",
 		},
+		{
+			name: "Post Description",
+			path: "fakepageloc",
+			fileData: fstest.MapFS{
+				"fakepageloc/some_page.html": &fstest.MapFile{Data: []byte("---\ndescription: test description\nmeta_description: test meta description\n---\ntest body")},
+			},
+			wantDesc:     "test description",
+			wantMetaDesc: "test meta description",
+		},
 	}
 
 	for _, test := range tests {
@@ -302,9 +314,21 @@ func TestLoadValidMetadata(t *testing.T) {
 					testutil.AssertEqual(t, "type", ce.ContentMetadata.Type, test.wantType)
 				}
 			}
-			testutil.AssertEqual(t, "template", ce.ContentMetadata.TemplateId, test.wantTemplate)
-			testutil.AssertEqual(t, "title", ce.ContentMetadata.Title, test.wantTitle)
-			testutil.AssertEqual(t, "path", ce.OutputPath, test.wantPath)
+			if test.wantDesc != "" {
+				testutil.AssertEqual(t, "description", ce.ContentMetadata.Description, test.wantDesc)
+			}
+			if test.wantDesc != "" {
+				testutil.AssertEqual(t, "meta_description", ce.ContentMetadata.MetaDescription, test.wantMetaDesc)
+			}
+			if test.wantTemplate != "" {
+				testutil.AssertEqual(t, "template", ce.ContentMetadata.TemplateId, test.wantTemplate)
+			}
+			if test.wantTitle != "" {
+				testutil.AssertEqual(t, "title", ce.ContentMetadata.Title, test.wantTitle)
+			}
+			if test.wantPath != "" {
+				testutil.AssertEqual(t, "path", ce.OutputPath, test.wantPath)
+			}
 		})
 	}
 }
