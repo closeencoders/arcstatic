@@ -34,6 +34,7 @@ func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, man
 	renderMap := map[string]interface{}{
 		"Metadata":     content.ContentMetadata,
 		"CanonicalURL": canonicalUrl.String(),
+		"SiteUrl":      c.ctx.SiteURL,
 	}
 	for k, v := range manifest {
 		renderMap[k] = v
