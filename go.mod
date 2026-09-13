@@ -1,11 +1,10 @@
 module github.com/closeencoders/arcstatic
 
-go 1.25.3
-
-require github.com/yuin/goldmark v1.7.17
+go 1.27.1
 
 require (
 	github.com/spf13/cobra v1.10.2
+	github.com/yuin/goldmark v1.7.17
 	gopkg.in/yaml.v3 v3.0.1
 )
 
