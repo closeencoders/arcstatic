@@ -1,6 +1,13 @@
 
 exclude:
   paths:
+    - \.pb\.go$
+    - /mocks/
+    - _mock\.go$
+    - /testutil/
+    - ^cmd/
+    - ^internal/migrations/
+    - ^vendor/
     - \.mod$
     - \.sum$
     - \.md$
