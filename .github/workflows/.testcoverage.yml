@@ -1,8 +1,6 @@
 
 exclude:
-  # Exclude files or packages matching their paths
   paths:
     - \.mod$
     - \.sum$
     - \.md$
-    - _test\.go$
