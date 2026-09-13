@@ -11,6 +11,8 @@ type SiteContext struct {
 	SiteRoot string
 	Base     string
 
+	Copy string `yaml:"copy"`
+
 	DefaultType string `yaml:"default_type"`
 
 	SiteOutputRoot string `yaml:"site_output_root"`
