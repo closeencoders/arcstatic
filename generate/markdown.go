@@ -114,9 +114,11 @@ func makeTableOfContents(content []byte, node *ast.Node) bytes.Buffer {
 				for i := 0; i < (currentLevel - level); i++ {
 					buf.WriteString("</ul>")
 				}
+			} else {
+				buf.WriteString("</li>")
 			}
 
-			buf.WriteString(fmt.Sprintf("<li><a href=\"#%s\">%s</a></li>", id, title))
+			fmt.Fprintf(&buf, "<li><a href=\"#%s\">%s</a>", id, title)
 			currentLevel = level
 		}
 		return ast.WalkContinue, nil
