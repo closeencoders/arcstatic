@@ -1,9 +1,9 @@
 # Arcstatic
 
 <p>
-<a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/main/coverage.svg" alt="coverage"></a>
-<a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://github.com/closeencoders/arcstatic/actions/workflows/go.yml/badge.svg" alt="Go Status"></a>
 <a href="https://github.com/closeencoders/arcstatic/blob/main/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/closeencoders/arcstatic.svg" alt="Go Version" ></a>
+<a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://github.com/closeencoders/arcstatic/actions/workflows/go.yml/badge.svg" alt="Go Status"></a>
+<a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/main/coverage.svg" alt="coverage"></a>
 </p>
 
 Arcstatic is a simple static site generator practice/learning project. While not intended for a production environment, I do personally use it for my own projects.
