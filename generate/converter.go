@@ -31,6 +31,7 @@ func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, man
 
 	canonicalUrl, _ := url.Parse(c.ctx.SiteURL)
 	canonicalUrl.Path = path.Join(canonicalUrl.Path, content.ContentMetadata.Url)
+
 	renderMap := map[string]interface{}{
 		"Metadata":     content.ContentMetadata,
 		"CanonicalURL": canonicalUrl.String(),

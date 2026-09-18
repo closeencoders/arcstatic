@@ -39,7 +39,7 @@ type SiteContext struct {
 	JsonLog  bool   `yaml:"json_log"`
 	LogLevel string `yaml:"log_level"`
 
-	// By default, content is given in date order by file name to improve performance. This flag allows this to be disabled at the cost of performance.
+	// By default, content files must be prefixed with a valid date
 	AllowNamelessDateSort bool `yaml:"allow_nameless_date_sort"`
 
 	// TODO:

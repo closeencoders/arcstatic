@@ -68,7 +68,7 @@ Create an `arcconfig.yml` file in the root directory of your project:
 post_input_dir: /override/input/post/location
 
 # The base URL of your site.
-site_url: https://yourdomain.com
+site_url: https://yourdomain.zom
 
 # Makes table-of-contents data available for content with detectable headings.
 make_toc: true
@@ -76,6 +76,10 @@ make_toc: true
 # Assigns a default type to all rendered content.
 # This value can be used for querying and looping.
 default_type: blog
+
+# Instructs the source loader to allow files without date prefixes e.g. 2006-10-10-mypost.md.
+# This could have performance impacts.
+allow_nameless_date_sort: true
 ```
 
 ## Example Feed

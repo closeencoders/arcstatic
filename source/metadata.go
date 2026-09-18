@@ -24,6 +24,7 @@ const (
 	_indexHtmlFile    = "index.html"
 	_maxInputSize     = 1_000_000
 	_YYYYMMDD_RFC3339 = "2006-01-02T15:04:05Z07:00"
+	_YYYYMMDD_RAW     = "2006-01-02"
 
 	_defaultPostTemplate = "post.html"
 	_defaultPageTemplate = "page.html"
@@ -32,6 +33,7 @@ const (
 var (
 	isoDateRegex   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
 	whitelistRegex = regexp.MustCompile(`[^a-zA-Z0-9.-]+`)
+	minDate        = time.Date(1960, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	errDatePrefix error = errors.New("file not prefixed with valid date, this can be disabled in configuration at the cost of performance")
 )
@@ -67,12 +69,14 @@ type ContentEntity struct {
 	InputPath string
 }
 
-// TODO: This should be more dynamic
+// TODO: This should be more dynamic, the base values that are standard can be defined, but the user should be able to add whatever they want whenever they want.
 type ContentMetadata struct {
 	Title       string `json:"title" yaml:"title"`
 	Image       string `json:"image" yaml:"image"`
 	Url         string `json:"url" yaml:"url"`
 	Description string `json:"description" yaml:"description"`
+	Author      string `json:"author" yaml:"author"`
+	Handle      string `json:"handle" yaml:"handle"`
 
 	AltImage        string `json:"-" yaml:"alt_image"`
 	MetaDescription string `json:"-" yaml:"meta_description"`
@@ -107,16 +111,15 @@ func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 		}
 	}
 
-	if m.ctx.AllowNamelessDateSort {
-		slices.SortFunc(metadata.SiteContentEntities, func(a, b *ContentEntity) int {
-			return b.ContentMetadata.Date.Compare(a.ContentMetadata.Date)
+	slices.SortFunc(metadata.SiteContentEntities, func(a, b *ContentEntity) int {
+		return b.ContentMetadata.Date.Compare(a.ContentMetadata.Date)
+	})
+	// TODO: Split process so that alpha order does not require a sort
+	for k, s := range metadata.ContentManifest {
+		slices.SortFunc(s, func(a, b *ContentMetadata) int {
+			return b.Date.Compare(a.Date)
 		})
-		for k, s := range metadata.ContentManifest {
-			slices.SortFunc(s, func(a, b *ContentMetadata) int {
-				return b.Date.Compare(a.Date)
-			})
-			metadata.ContentManifest[k] = s
-		}
+		metadata.ContentManifest[k] = s
 	}
 
 	return &metadata, nil
@@ -298,8 +301,16 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 		}
 	}
 	if datePrefix != nil {
+		exDate := ce.ArtificialFileName[:datePrefix[1]]
 		ce.ArtificialFileName = strings.TrimLeft(ce.ArtificialFileName[datePrefix[1]:], "_- ")
 		slog.Debug("using ArtificialFileName name", "name", ce.ArtificialFileName)
+		if ce.ContentMetadata.Date.IsZero() || ce.ContentMetadata.Date.Before(minDate) {
+			slog.Debug("date not defined in metadata using prefix", "date", exDate)
+			ce.ContentMetadata.Date, err = time.Parse(_YYYYMMDD_RAW, exDate)
+			if err != nil {
+				return nil, fmt.Errorf("failed to handle file %s prefix date: %w", ce.ArtificialFileName, err)
+			}
+		}
 	}
 
 	return &ce, nil

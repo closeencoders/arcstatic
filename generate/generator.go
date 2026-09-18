@@ -50,29 +50,11 @@ func (g *generator) Generate(metadata *source.SiteMetadata) error {
 		return fmt.Errorf("failed to create content output dir: %w", err)
 	}
 
+	// metadata.SiteContentEntities
 	for _, ce := range metadata.SiteContentEntities {
-
-		fileData, err := storage.LoadSiteFile(ce.InputPath, g.store)
+		err := g.makeContent(ce, metadata, baseOutPath)
 		if err != nil {
-			slog.Warn("unable to create file, relative path is invalid", "path", ce.RelativePath, "err", err)
-			continue
-		}
-
-		relativePath := filepath.Join(baseOutPath, ce.RelativePath)
-		writePath := filepath.Join(baseOutPath, ce.OutputPath)
-
-		err = g.store.Mkdir(_defaultFilePerm, relativePath)
-		if err != nil {
-			return fmt.Errorf("unable to make new dir for content: %w", err)
-		}
-		content, err := g.converter.ToContent(fileData.Data, ce, metadata.ContentManifest)
-		if err != nil {
-			return fmt.Errorf("unable to convert to content: %w", err)
-		}
-		slog.Debug("Writing content", "path", writePath)
-		err = g.store.Write(writePath, content, _defaultFilePerm)
-		if err != nil {
-			return fmt.Errorf("failed to write content to file: %w", err)
+			return err
 		}
 	}
 
@@ -84,6 +66,33 @@ func (g *generator) Generate(metadata *source.SiteMetadata) error {
 	}
 	if g.ctx.SiteOutputRoot != "" && g.ctx.SiteRoot != "" && g.ctx.SiteOutputRoot != g.ctx.SiteRoot {
 		g.copyAssets(baseOutPath)
+	}
+
+	return nil
+}
+
+func (g *generator) makeContent(ce *source.ContentEntity, metadata *source.SiteMetadata, baseOutPath string) error {
+	fileData, err := storage.LoadSiteFile(ce.InputPath, g.store)
+	if err != nil {
+		slog.Warn("unable to create file, relative path is invalid", "path", ce.RelativePath, "err", err)
+		return nil
+	}
+
+	relativePath := filepath.Join(baseOutPath, ce.RelativePath)
+	writePath := filepath.Join(baseOutPath, ce.OutputPath)
+
+	err = g.store.Mkdir(_defaultFilePerm, relativePath)
+	if err != nil {
+		return fmt.Errorf("unable to make new dir for content: %w", err)
+	}
+	content, err := g.converter.ToContent(fileData.Data, ce, metadata.ContentManifest)
+	if err != nil {
+		return fmt.Errorf("unable to convert to content: %w", err)
+	}
+	slog.Debug("Writing content", "path", writePath)
+	err = g.store.Write(writePath, content, _defaultFilePerm)
+	if err != nil {
+		return fmt.Errorf("failed to write content to file: %w", err)
 	}
 
 	return nil

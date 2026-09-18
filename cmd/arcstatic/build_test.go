@@ -198,14 +198,14 @@ func TestWithDatePrefixWriteOrder(t *testing.T) {
 	}
 
 	expected := []string{
-		"rootpath/8-post/index.html",
-		"rootpath/7-post/index.html",
-		"rootpath/6-post/index.html",
-		"rootpath/5-post/index.html",
-		"rootpath/4-post/index.html",
-		"rootpath/3-post/index.html",
-		"rootpath/2-post/index.html",
 		"rootpath/1-post/index.html",
+		"rootpath/2-post/index.html",
+		"rootpath/3-post/index.html",
+		"rootpath/4-post/index.html",
+		"rootpath/5-post/index.html",
+		"rootpath/6-post/index.html",
+		"rootpath/7-post/index.html",
+		"rootpath/8-post/index.html",
 	}
 
 	ctx := source.CreateDefaultContext("rootpath")
