@@ -115,6 +115,8 @@ The engine uses Goldmark and Go’s built-in templating to loop over entities wh
 
 ## Example Page Template
 
+For full templates and examples, checkout out the template repo: <a href="https://github.com/closeencoders/arcstatic-templates">https://github.com/closeencoders/arcstatic-templates</a>
+
 ```html
 <!doctype html>
 <html lang="en">
