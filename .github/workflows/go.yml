@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [ "main", "dev" ]
 
+concurrency:
+  group: go-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
   build:
@@ -38,5 +42,5 @@ jobs:
         profile: cover.out
         ## when token is not specified (value '') this feature is turned off
         ## in this example badge is created and committed only for main branch
-        git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
+        git-token: ${{ (github.ref_name == 'main' || github.ref_name == 'dev') && secrets.GITHUB_TOKEN || '' }}
         git-branch: badges
