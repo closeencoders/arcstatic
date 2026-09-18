@@ -50,7 +50,6 @@ func (g *generator) Generate(metadata *source.SiteMetadata) error {
 		return fmt.Errorf("failed to create content output dir: %w", err)
 	}
 
-	// metadata.SiteContentEntities
 	for _, ce := range metadata.SiteContentEntities {
 		err := g.makeContent(ce, metadata, baseOutPath)
 		if err != nil {
