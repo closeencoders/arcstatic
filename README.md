@@ -1,10 +1,6 @@
 # Arcstatic
 
-<p>
-<a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/main/coverage.svg" alt="coverage"></a>
-<a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://github.com/closeencoders/arcstatic/actions/workflows/go.yml/badge.svg" alt="Go Status"></a>
-<a href="https://github.com/closeencoders/arcstatic/blob/main/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/closeencoders/arcstatic.svg" alt="Go Version" ></a>
-</p>
+<table><thead><tr><th>Branch</th><th>Go Version</th><th>Status</th><th>Coverage</th></tr></thead><tbody><tr><td><a href="https://github.com/closeencoders/arcstatic/tree/main">main</a></td><td><a href="https://github.com/closeencoders/arcstatic/blob/main/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/closeencoders/arcstatic.svg" alt="Main Go Version"></a></td><td><a href="https://github.com/closeencoders/arcstatic/actions/workflows/go.yml?query=branch%3Amain"><img src="https://github.com/closeencoders/arcstatic/actions/workflows/go.yml/badge.svg?branch=main" alt="Main Status"></a></td><td><a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/main/coverage.svg?branch=main" alt="Main Coverage"></a></td></tr><tr><td><a href="https://github.com/closeencoders/arcstatic/tree/dev">dev</a></td><td><a href="https://github.com/closeencoders/arcstatic/blob/dev/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/closeencoders/arcstatic.svg" alt="Dev Go Version"></a></td><td><a href="https://github.com/closeencoders/arcstatic/actions/workflows/go.yml?query=branch%3Adev"><img src="https://github.com/closeencoders/arcstatic/actions/workflows/go.yml/badge.svg?branch=dev" alt="Dev Status"></a></td><td><a href="https://github.com/closeencoders/arcstatic/actions"><img src="https://raw.githubusercontent.com/closeencoders/arcstatic/badges/.badges/dev/coverage.svg?branch=dev" alt="Dev Coverage"></a></td></tr></tbody></table>
 
 Arcstatic is a simple static site generator practice/learning project. While not intended for a production environment, I do personally use it for my own projects.
 
