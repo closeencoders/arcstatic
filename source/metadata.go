@@ -242,14 +242,13 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 		}
 	}
 
-	usePrettyUrl := !m.ctx.FullHtmlPaths && ce.FileName != _indexHtmlFile
 	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
 	outFilename := ce.ArtificialFileName
 	if ce.ArtificialFileName != _indexHtmlFile {
 		outFilename = strings.TrimSuffix(ce.ArtificialFileName, filepath.Ext(ce.ArtificialFileName))
 	}
 
-	if usePrettyUrl {
+	if m.isUsePrettyUrl(ce) {
 		if usePermalink {
 			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink, _indexHtmlFile)
 			ce.RelativePath = path.Join(m.ctx.Base, subDir, ce.ContentMetadata.Permalink)
@@ -268,6 +267,10 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 	}
 
 	ce.ContentMetadata.Url = ce.RelativePath
+}
+
+func (m *metadata) isUsePrettyUrl(ce *ContentEntity) bool {
+	return !m.ctx.FullHtmlPaths && ce.FileName != _indexHtmlFile
 }
 
 // TODO: the input dir is not a dir, its the path to the content file. this needs to be corrected so the artificial name is
@@ -316,16 +319,21 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 	return &ce, nil
 }
 
-func (m *metadata) updateSitemap(content *ContentEntity, metadata *SiteMetadata) {
+func (m *metadata) updateSitemap(ce *ContentEntity, metadata *SiteMetadata) {
 
 	siteUrl, _ := url.Parse(m.ctx.SiteURL)
 	if m.ctx.FullHtmlPaths {
-		siteUrl.Path = path.Join(siteUrl.Path, content.OutputPath)
+		siteUrl.Path = path.Join(siteUrl.Path, ce.OutputPath)
 	} else {
-		siteUrl.Path = path.Join(siteUrl.Path, content.RelativePath)
+		if m.isUsePrettyUrl(ce) {
+			siteUrl.Path = path.Join(siteUrl.Path, ce.RelativePath)
+			siteUrl.Path += "/"
+		} else {
+			siteUrl.Path = path.Join(siteUrl.Path, ce.RelativePath)
+		}
 	}
 
-	xmlDate := content.ContentMetadata.Date
+	xmlDate := ce.ContentMetadata.Date
 	if xmlDate.IsZero() {
 		xmlDate = time.Now()
 	}
