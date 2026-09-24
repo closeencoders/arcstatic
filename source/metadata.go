@@ -163,30 +163,39 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 			return nil
 		}
 
-		content, err := m.getContentMetadata(fileData.Data, fileData.Name, root)
+		ce, err := m.getContentMetadata(fileData.Data, fileData.Name, root)
 		if err != nil {
 			return fmt.Errorf("failed to convert to content %s: %w", path, err)
 		}
-		if content.ContentMetadata.Draft {
+		if ce.ContentMetadata.Draft {
 			log.Debug("is draft")
 			return nil
 		}
-		content.InputPath = path
+		ce.InputPath = path
 
 		if m.ctx.AllowManifest {
-			m.updateManifest(root, content, metadata)
+			m.updateManifest(root, ce, metadata)
 		}
 
-		m.buildPaths(root, content)
+		m.buildPaths(root, ce)
 
 		if m.ctx.MakeSitemapXML {
-			m.updateSitemap(content, metadata)
+			m.updateSitemap(ce, metadata)
 		}
 
-		metadata.SiteContentEntities = append(metadata.SiteContentEntities, content)
+		metadata.SiteContentEntities = append(metadata.SiteContentEntities, ce)
 
 		return err
 	})
+}
+
+func containsAny(data string, query []string) bool {
+	for _, q := range query {
+		if strings.Contains(data, q) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *metadata) updateManifest(root string, content *ContentEntity, metadata *SiteMetadata) {
@@ -321,16 +330,21 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 
 func (m *metadata) updateSitemap(ce *ContentEntity, metadata *SiteMetadata) {
 
-	siteUrl, _ := url.Parse(m.ctx.SiteURL)
+	mapUrl, _ := url.Parse(m.ctx.SiteURL)
 	if m.ctx.FullHtmlPaths {
-		siteUrl.Path = path.Join(siteUrl.Path, ce.OutputPath)
+		mapUrl.Path = path.Join(mapUrl.Path, ce.OutputPath)
 	} else {
 		if m.isUsePrettyUrl(ce) {
-			siteUrl.Path = path.Join(siteUrl.Path, ce.RelativePath)
-			siteUrl.Path += "/"
+			mapUrl.Path = path.Join(mapUrl.Path, ce.RelativePath)
+			mapUrl.Path += "/"
 		} else {
-			siteUrl.Path = path.Join(siteUrl.Path, ce.RelativePath)
+			mapUrl.Path = path.Join(mapUrl.Path, ce.RelativePath)
 		}
+	}
+
+	if len(m.ctx.SitemapExclusions) > 0 && containsAny(mapUrl.Path, m.ctx.SitemapExclusions) {
+		slog.Debug("map url excluded", "path", mapUrl)
+		return
 	}
 
 	xmlDate := ce.ContentMetadata.Date
@@ -338,7 +352,7 @@ func (m *metadata) updateSitemap(ce *ContentEntity, metadata *SiteMetadata) {
 		xmlDate = time.Now()
 	}
 	xmlUrl := SitemapUrl{
-		Loc:     siteUrl.String(),
+		Loc:     mapUrl.String(),
 		LastMod: xmlDate.Format(_YYYYMMDD_RFC3339),
 	}
 

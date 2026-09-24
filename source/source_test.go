@@ -3,6 +3,7 @@ package source
 import (
 	"errors"
 	"path"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -74,6 +75,68 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestSitemapLoading(t *testing.T) {
+
+	tests := []struct {
+		name string
+
+		fileName  string
+		fileData  []byte
+		exclusion string
+		path      string
+
+		wantPath string
+	}{
+		{
+			name:      "Should Exclude From Sitemap When Matched",
+			path:      "fakepostloc",
+			fileName:  "fakepostloc/2026-06-01-basic_post.md",
+			fileData:  []byte("---\ntitle: Exclude Sitemap\ntype: posts\n---\n# Header"),
+			exclusion: "/posts",
+		},
+		{
+			name:      "Should Not Exclude From Sitemap When Not Matched",
+			path:      "fakepostloc",
+			fileName:  "fakepostloc/2026-06-01-basic_post.md",
+			fileData:  []byte("---\ntitle: Include Sitemap\ntype: posts\n---\n# Header"),
+			exclusion: "/loc",
+			wantPath:  "http://yourdomain.com/posts/basic-post/",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := CreateDefaultContext("public")
+			ctx.PostInputDir = test.path
+			ctx.AllowTaxonomyPaths = true
+			ctx.SitemapExclusions = []string{test.exclusion}
+
+			testFile := fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}}
+			store, _ := testutil.NewFakeStorage(testFile)
+			ml := NewMetadata(ctx, store)
+
+			result, err := ml.LoadMetadata(ctx.PostInputDir)
+			if err != nil {
+				t.Fatalf("unexpected error %v", err)
+			}
+
+			if test.wantPath == "" {
+				if len(result.SiteMapUrlMetadata) > 0 {
+					for _, smu := range result.SiteMapUrlMetadata {
+						if strings.Contains(smu.Loc, test.exclusion) {
+							t.Errorf("path should be excluded from sitemap \nFound:[%s]\nExclu:[%s]", smu.Loc, test.exclusion)
+						}
+					}
+				}
+			} else if len(result.SiteMapUrlMetadata) == 0 {
+				t.Errorf("sitemap was empty, expected path %s", test.wantPath)
+			} else {
+				testutil.AssertEqual(t, "included sitemap location", result.SiteMapUrlMetadata[0].Loc, test.wantPath)
+			}
+		})
+	}
+}
+
 func TestTaxonomy(t *testing.T) {
 
 	initContext := config.NewContext("test")
@@ -116,10 +179,8 @@ func TestTaxonomy(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
 			ctx := CreateDefaultContext("public")
-			ctx.PostInputDir = "fakepostloc"
-			ctx.PageInputDir = "fakepageloc"
+			ctx.PostInputDir = test.path
 			ctx.AllowTaxonomyPaths = test.allowTaxonomyPaths
 
 			testFile := fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}}

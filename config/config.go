@@ -47,6 +47,9 @@ type SiteContext struct {
 	// TODO:
 	AllowTaxonomyPaths bool `yaml:"allow_taxonomy_paths"`
 
+	// rules that the sitemap.xml will exclude. (e.g. /posts) will exclude any rendered paths that contain "/posts"
+	SitemapExclusions []string `yaml:"sitemap_exclusions"`
+
 	AllowManifest bool
 }
 
