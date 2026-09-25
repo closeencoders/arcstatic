@@ -42,13 +42,14 @@ type SiteContext struct {
 	// By default, content files must be prefixed with a valid date
 	AllowNamelessDateSort bool `yaml:"allow_nameless_date_sort"`
 
-	// TODO:
+	// TODO: Will eventually support the archival paradigm so you can have urls the automatically have date and other misc data.
 	KeepDateUrl bool `yaml:"keep_date_url"`
-	// TODO:
+	// Will allow a defined type on content to dictate it url path. So a type of "posts" can end up in a path of "/posts/xxx"
 	AllowTaxonomyPaths bool `yaml:"allow_taxonomy_paths"`
 
 	// rules that the sitemap.xml will exclude. (e.g. /posts) will exclude any rendered paths that contain "/posts"
-	SitemapExclusions []string `yaml:"sitemap_exclusions"`
+	SitemapExclusions       []string `yaml:"sitemap_exclusions"`
+	SitemapAllowFileLastMod bool     `yaml:"sitemap_allow_file_lastmod"`
 
 	AllowManifest bool
 }
@@ -70,8 +71,9 @@ func NewContext(root string) *SiteContext {
 
 		DefaultType: "All",
 
-		MakeSitemapXML:   true,
-		MakePostMetadata: true,
+		MakeSitemapXML:          true,
+		MakePostMetadata:        true,
+		SitemapAllowFileLastMod: true,
 
 		AllowManifest: true,
 	}

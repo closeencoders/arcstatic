@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
@@ -21,6 +22,7 @@ type FileData struct {
 	Name      string
 	Extension string
 	Data      []byte
+	LastMod   time.Time
 }
 
 func SupportedContentFile(path string) bool {
@@ -86,9 +88,22 @@ func LoadSiteFile(path string, fsys fs.FS) (FileData, error) {
 		return FileData{}, ErrUnsupported
 	}
 
+	info, err := fs.Stat(fsys, path)
+	if err != nil {
+		return FileData{}, fmt.Errorf("failed to read site file info %s: %w", path, err)
+	}
+
 	data, err := fs.ReadFile(fsys, path)
 	if err != nil {
 		return FileData{}, fmt.Errorf("failed to load site file %s: %w", path, err)
 	}
-	return FileData{Extension: filepath.Ext(path), Data: data, Name: filepath.Base(path)}, nil
+
+	fd := FileData{
+		Extension: filepath.Ext(path),
+		Data:      data,
+		Name:      filepath.Base(path),
+		LastMod:   info.ModTime(),
+	}
+
+	return fd, nil
 }

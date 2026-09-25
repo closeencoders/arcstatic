@@ -28,12 +28,17 @@ const (
 
 	_defaultPostTemplate = "post.html"
 	_defaultPageTemplate = "page.html"
+
+	// TODO: move to some kind of type system similar to an enum
+	_page_type     = "page"
+	_post_type     = "post"
+	_reserved_type = "reserved"
 )
 
 var (
 	isoDateRegex   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
 	whitelistRegex = regexp.MustCompile(`[^a-zA-Z0-9.-]+`)
-	minDate        = time.Date(1960, 1, 1, 0, 0, 0, 0, time.UTC)
+	minDate        = time.Date(1800, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	errDatePrefix error = errors.New("file not prefixed with valid date, this can be disabled in configuration at the cost of performance")
 )
@@ -67,6 +72,8 @@ type ContentEntity struct {
 	OutputPath string
 	// Full path to original content file to be rendered:  pcroot/siteroot/posts/2006-01-02-some-post.md
 	InputPath string
+	// Is it a page a post or what?
+	ContentType string
 }
 
 // TODO: This should be more dynamic, the base values that are standard can be defined, but the user should be able to add whatever they want whenever they want.
@@ -180,7 +187,7 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 		m.buildPaths(root, ce)
 
 		if m.ctx.MakeSitemapXML {
-			m.updateSitemap(ce, metadata)
+			m.updateSitemap(ce, metadata, fileData.LastMod)
 		}
 
 		metadata.SiteContentEntities = append(metadata.SiteContentEntities, ce)
@@ -227,16 +234,16 @@ func (m *metadata) appendTypes(cm *ContentMetadata, data map[string][]*ContentMe
 	}
 }
 
+// TODO: The location the file comes from dictate the content type, but not the template used. This may need to change.
 func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 
 	subDir := ""
-	if strings.TrimSpace(ce.ContentMetadata.TemplateId) == "" {
-		switch root {
+	switch root {
+	case m.ctx.PostInputDir:
 
-		case m.ctx.PostInputDir:
-
+		ce.ContentType = _post_type
+		if strings.TrimSpace(ce.ContentMetadata.TemplateId) == "" {
 			ce.ContentMetadata.TemplateId = _defaultPostTemplate
-
 			if m.ctx.AllowTaxonomyPaths && ce.ContentMetadata.Type != "" {
 				if len(m.ctx.PostOutputDir) > 1 {
 					subDir = filepath.Join(m.ctx.PostOutputDir, ce.ContentMetadata.Type)
@@ -245,10 +252,17 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 				}
 				slog.Debug("using type path", "type", ce.ContentMetadata.Type, "subdir", subDir)
 			}
+		}
 
-		case m.ctx.PageInputDir:
+	case m.ctx.PageInputDir:
+
+		ce.ContentType = _page_type
+		if strings.TrimSpace(ce.ContentMetadata.TemplateId) == "" {
 			ce.ContentMetadata.TemplateId = _defaultPageTemplate
 		}
+
+	default:
+		ce.ContentType = _reserved_type
 	}
 
 	usePermalink := len(strings.TrimSpace(ce.ContentMetadata.Permalink)) > 1
@@ -262,7 +276,6 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink, _indexHtmlFile)
 			ce.RelativePath = path.Join(m.ctx.Base, subDir, ce.ContentMetadata.Permalink)
 		} else {
-			// fileName := strings.TrimSuffix(ce.ArtificialFileName, filepath.Ext(ce.ArtificialFileName))
 			ce.OutputPath = filepath.Join(subDir, outFilename, _indexHtmlFile)
 			ce.RelativePath = path.Join(m.ctx.Base, subDir, outFilename)
 		}
@@ -328,7 +341,7 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 	return &ce, nil
 }
 
-func (m *metadata) updateSitemap(ce *ContentEntity, metadata *SiteMetadata) {
+func (m *metadata) updateSitemap(ce *ContentEntity, metadata *SiteMetadata, lastMod time.Time) {
 
 	mapUrl, _ := url.Parse(m.ctx.SiteURL)
 	if m.ctx.FullHtmlPaths {
@@ -347,15 +360,14 @@ func (m *metadata) updateSitemap(ce *ContentEntity, metadata *SiteMetadata) {
 		return
 	}
 
-	xmlDate := ce.ContentMetadata.Date
-	if xmlDate.IsZero() {
-		xmlDate = time.Now()
+	xmlUrl := SitemapUrl{Loc: mapUrl.String()}
+	if ce.ContentType == _post_type {
+		xmlDate := ce.ContentMetadata.Date
+		if xmlDate.IsZero() && m.ctx.SitemapAllowFileLastMod {
+			xmlDate = lastMod
+		}
+		xmlUrl.LastMod = xmlDate.Format(_YYYYMMDD_RFC3339)
 	}
-	xmlUrl := SitemapUrl{
-		Loc:     mapUrl.String(),
-		LastMod: xmlDate.Format(_YYYYMMDD_RFC3339),
-	}
-
 	metadata.SiteMapUrlMetadata = append(metadata.SiteMapUrlMetadata, xmlUrl)
 }
 
