@@ -279,6 +279,7 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 			ce.OutputPath = filepath.Join(subDir, outFilename, _indexHtmlFile)
 			ce.RelativePath = path.Join(m.ctx.Base, subDir, outFilename)
 		}
+		ce.RelativePath += "/"
 	} else {
 		if usePermalink {
 			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink)
