@@ -156,6 +156,9 @@ func (g *generator) createMetadataFile(basePath string, contentMetadata []*sourc
 
 	slog.Debug("creating metadata file", "path", basePath)
 	postMetadataPath := filepath.Join(basePath, "data")
+	if strings.TrimSpace(g.ctx.PostMetadataDir) != "" {
+		postMetadataPath = filepath.Join(basePath, g.ctx.PostMetadataDir)
+	}
 	err := g.store.Mkdir(_defaultFilePerm, postMetadataPath)
 	if err != nil {
 		slog.Error("failed to make metadata file location", "dir", postMetadataPath, "error", err)

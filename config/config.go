@@ -31,8 +31,11 @@ type SiteContext struct {
 
 	MaxDescriptionLen int `yaml:"max_description_len"`
 
-	// TODO: Isolation to individual content preferences
-	MakePostMetadata    bool `yaml:"make_post_metadata"`
+	// Will create a json file with metadata about posts for static utility functions and search
+	MakePostMetadata bool `yaml:"make_post_metadata"`
+	// Express a relative path of where you want the json metadata file to be output to.
+	PostMetadataDir string `yaml:"post_metadata_dir"`
+
 	MakeSitemapXML      bool `yaml:"make_sitemap"`
 	MakeTableOfContents bool `yaml:"make_toc"`
 
