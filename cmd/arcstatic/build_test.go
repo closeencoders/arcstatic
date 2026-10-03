@@ -23,8 +23,8 @@ func TestBuildFlags(t *testing.T) {
 	siteOutputRoot := filepath.Join(siteRoot, "output")
 	expectedPostFile := "testroot/output/post/index.html"
 
-	ignoredConfig := []byte(fmt.Sprintf("site_output_root: %s", "ignore/this"))
-	usedConfig := []byte(fmt.Sprintf("site_output_root: %s", siteOutputRoot))
+	ignoredConfig := fmt.Appendf(nil, "site_output_root: %s", "ignore/this")
+	usedConfig := fmt.Appendf(nil, "site_output_root: %s", siteOutputRoot)
 
 	tests := []struct {
 		name           string
@@ -135,7 +135,7 @@ func TestBuildReachesGenerator(t *testing.T) {
 			name: "Should Attempt To Write Basic Content And Alt Files",
 
 			fileName: "fakepostloc/2026-06-01-basic_post.md",
-			fileData: []byte("---\ntitle: Hello\n---\ntest"),
+			fileData: []byte("---\ntitle: Hello\nimage: /epic/image/blah.webp---\ntest"),
 
 			allowAltFiles: true,
 
@@ -145,7 +145,7 @@ func TestBuildReachesGenerator(t *testing.T) {
 			name: "Should Attempt To Write Basic Content",
 
 			fileName: "fakepostloc/2026-06-01-basic_post.md",
-			fileData: []byte("---\ntitle: Hello\n---\ntest"),
+			fileData: []byte("---\ntitle: Hello\nimage: /epic/image/blah.webp---\ntest"),
 
 			count: 1,
 		},

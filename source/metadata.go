@@ -80,6 +80,7 @@ type ContentEntity struct {
 type ContentMetadata struct {
 	Title       string `json:"title" yaml:"title"`
 	Image       string `json:"image" yaml:"image"`
+	ImageMime   string `json:"-" yaml:"image_mime"`
 	Url         string `json:"url" yaml:"url"`
 	Description string `json:"description" yaml:"description"`
 	Author      string `json:"author" yaml:"author"`

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"path/filepath"
 	"strings"
 	"time"
@@ -31,6 +32,18 @@ func SupportedContentFile(path string) bool {
 
 func SupportedFile(path string) bool {
 	return hasExtension(path, supportedDataFileTypes, supportedContentTypes)
+}
+
+func GetMimeType(path string) string {
+	if len(path) < 3 {
+		slog.Debug("unsupported path length, must go to content file to find mime type")
+		return ""
+	}
+	mimeType := mime.TypeByExtension(filepath.Ext(path))
+	if mimeType != "" && strings.Contains(mimeType, ";") {
+		mimeType = strings.TrimSpace(strings.SplitN(mimeType, ";", 2)[0])
+	}
+	return mimeType
 }
 
 func hasExtension(path string, targetMaps ...map[string]struct{}) bool {

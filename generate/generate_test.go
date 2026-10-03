@@ -11,6 +11,47 @@ import (
 	"github.com/closeencoders/arcstatic/source"
 )
 
+// Express full generator behavior treating markdown to html conversion as a black box.
+func TestGenerate(t *testing.T) {
+
+	tests := []struct {
+		name     string
+		fileName string
+		fileData []byte
+	}{
+		{
+			name: "Should Run Full Process And Persist Detected Data",
+
+			fileName: "rootpath/fakepostloc/2026-06-01-basic_post.md",
+			fileData: []byte("---\ntitle: Text\nimage: /yee/epic/image.webp---\ntest"),
+		},
+	}
+
+	for _, test := range tests {
+
+		t.Run(test.name, func(t *testing.T) {
+
+			ctx := source.CreateDefaultContext("rootpath")
+			ctx.PostInputDir = "fakepostloc"
+
+			store, _ := testutil.NewFakeStorage(fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}})
+			conv, sm, err := createTestData(ctx, store)
+			if err != nil {
+				t.Fatal("test failed")
+			}
+
+			g := NewGenerator(ctx, *conv, store)
+			g.Generate(sm)
+
+			testutil.AssertEqual(t, "Image not persisted for generate process", sm.SiteContentEntities[0].ContentMetadata.Image, "/yee/epic/image.webp")
+			testutil.AssertEqual(t, "Image type not persisted for generate process", sm.SiteContentEntities[0].ContentMetadata.ImageMime, "image/webp")
+		})
+
+	}
+
+}
+
+// Isolated only to the markdown content to html conversion
 func TestContentConversion(t *testing.T) {
 
 	tests := []struct {
@@ -21,18 +62,18 @@ func TestContentConversion(t *testing.T) {
 		want []byte
 	}{
 		{
-			name: "Should Generate Basic Text",
+			name: "Should Convert To Basic Text",
 
 			fileName: "rootpath/fakepostloc/2026-06-01-basic_post.md",
-			fileData: []byte("---\ntitle: Text\n---\ntest"),
+			fileData: []byte("---\ntitle: Text\nimage: /yee/epic/image.webp---\ntest"),
 
 			want: []byte("<p>test</p>\n"),
 		},
 		{
-			name: "Should Generate Basic Markdown",
+			name: "Should Convert To Basic Markdown",
 
 			fileName: "rootpath/fakepostloc/2026-06-01-basic_post.md",
-			fileData: []byte("---\ntitle: Markdown\n---\n# One\n## Two\n### Three\nTesting"),
+			fileData: []byte("---\ntitle: Markdown\nimage: /yee/epic/image.webp\n---\n# One\n## Two\n### Three\nTesting"),
 
 			want: []byte("<h1 id=\"one\">One</h1>\n<h2 id=\"two\">Two</h2>\n<h3 id=\"three\">Three</h3>\n<p>Testing</p>\n"),
 		},
