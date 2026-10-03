@@ -90,7 +90,7 @@ func (g *generator) makeContent(ce *source.ContentEntity, metadata *source.SiteM
 		if strings.HasPrefix(imgMimeType, "image/") {
 			ce.ContentMetadata.ImageMime = imgMimeType
 		} else {
-			slog.Warn("image metadata detected with potentially invalid image type", "img", ce.ContentMetadata.Image)
+			slog.Warn("image metadata detected with potentially invalid image MIME type", "img", ce.ContentMetadata.Image, "mime", imgMimeType)
 		}
 	}
 
