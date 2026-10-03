@@ -31,7 +31,7 @@ func NewSsg(cmd *cobra.Command, store storage.Storage) *ssg {
 	if err != nil {
 		defaultLocation = "."
 	}
-	ssg := ssg{store: store, cmd: cmd}
+	ssg := &ssg{store: store, cmd: cmd}
 
 	cmd.Flags().StringVarP(&ssg.inputLocation, "in", "i", defaultLocation, "override default site context current working directory input location, defaults to current location")
 	cmd.Flags().StringVarP(&ssg.outputLocation, "out", "o", "", "override default site context current working directory out location, defaults to input location")
@@ -40,7 +40,18 @@ func NewSsg(cmd *cobra.Command, store storage.Storage) *ssg {
 	cmd.Flags().IntVarP(&ssg.port, "port", "p", 8000, "port number to file serve the site, if the serve command is not used, this is ignored")
 	cmd.Flags().BoolVarP(&ssg.verbose, "verbose", "v", false, "run verbose with debug logs, this will attempt to override any config file settings")
 
-	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+	createPersistedPreRun(ssg)
+
+	surfaceCommand(ssg)
+
+	createShowCommand(ssg)
+	createInitCommand(ssg)
+
+	return ssg
+}
+
+func createPersistedPreRun(ssg *ssg) {
+	ssg.cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 
 		inAbs, err := storage.ToCleanAbs(ssg.inputLocation)
 		if err != nil {
@@ -79,8 +90,11 @@ func NewSsg(cmd *cobra.Command, store storage.Storage) *ssg {
 
 		return nil
 	}
+}
 
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+// TODO: Be able to run build and serve at the same time but with built in cobra mechanics AND still wrapped in MY struct for testing.
+func surfaceCommand(ssg *ssg) {
+	ssg.cmd.RunE = func(cmd *cobra.Command, args []string) error {
 
 		slog.Debug("Running Commands", "cmds", os.Args)
 		ssg.inputLocation = strings.TrimSpace(ssg.inputLocation)
@@ -100,8 +114,6 @@ func NewSsg(cmd *cobra.Command, store storage.Storage) *ssg {
 		}
 		return nil
 	}
-
-	return &ssg
 }
 
 func main() {
@@ -113,6 +125,7 @@ func main() {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
+
 	ssg := NewSsg(rootCmd, storage.NewOSFileStorage())
 	cobra.CheckErr(ssg.cmd.Execute())
 }
