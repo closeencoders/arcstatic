@@ -2,9 +2,9 @@ package config
 
 type SiteContext struct {
 	// ComponentMap holds raw template partials or blocks keyed by their identifier name.
-	ComponentMap map[string][]byte
+	ComponentMap map[string][]byte `json:"-" yaml:"-"`
 	// TemplateMap holds raw layout templates keyed by their identifier name.
-	TemplateMap map[string][]byte
+	TemplateMap map[string][]byte `json:"-" yaml:"-"`
 
 	// SiteURL is the absolute base URL (e.g., "https://example.com").
 	SiteURL  string `yaml:"site_url"`
