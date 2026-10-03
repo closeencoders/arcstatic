@@ -85,15 +85,6 @@ func (g *generator) makeContent(ce *source.ContentEntity, metadata *source.SiteM
 		return fmt.Errorf("unable to make new dir for content: %w", err)
 	}
 
-	if strings.TrimSpace(ce.ContentMetadata.ImageMime) == "" && strings.TrimSpace(ce.ContentMetadata.Image) != "" {
-		imgMimeType := storage.GetMimeType(ce.ContentMetadata.Image)
-		if strings.HasPrefix(imgMimeType, "image/") {
-			ce.ContentMetadata.ImageMime = imgMimeType
-		} else {
-			slog.Warn("image metadata detected with potentially invalid image MIME type", "img", ce.ContentMetadata.Image, "mime", imgMimeType)
-		}
-	}
-
 	content, err := g.converter.ToContent(fileData.Data, ce, metadata.ContentManifest)
 	if err != nil {
 		return fmt.Errorf("unable to convert to content: %w", err)

@@ -11,7 +11,7 @@ import (
 	"github.com/closeencoders/arcstatic/source"
 )
 
-// Express full generator behavior treating markdown to html conversion as a black box.
+// TODO: Express full generator behavior treating markdown to html conversion as a black box.
 func TestGenerate(t *testing.T) {
 
 	tests := []struct {
@@ -48,7 +48,6 @@ func TestGenerate(t *testing.T) {
 		})
 
 	}
-
 }
 
 // Isolated only to the markdown content to html conversion

@@ -340,6 +340,15 @@ func (m *metadata) getContentMetadata(fileData []byte, fileName string, root str
 		}
 	}
 
+	if strings.TrimSpace(ce.ContentMetadata.ImageMime) == "" && strings.TrimSpace(ce.ContentMetadata.Image) != "" {
+		imgMimeType := storage.GetMimeType(ce.ContentMetadata.Image)
+		if strings.HasPrefix(imgMimeType, "image/") {
+			ce.ContentMetadata.ImageMime = imgMimeType
+		} else {
+			slog.Warn("image metadata detected with potentially invalid image MIME type", "img", ce.ContentMetadata.Image, "mime", imgMimeType)
+		}
+	}
+
 	return &ce, nil
 }
 

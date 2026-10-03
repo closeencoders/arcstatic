@@ -284,10 +284,12 @@ func TestLoadValidMetadata(t *testing.T) {
 		fileData fstest.MapFS
 		path     string
 
-		wantTitle    string
-		wantPath     string
-		wantTemplate string
-		wantType     string
+		wantTitle     string
+		wantPath      string
+		wantTemplate  string
+		wantType      string
+		wantImageMime string
+		wantImage     string
 
 		wantDesc     string
 		wantMetaDesc string
@@ -345,6 +347,15 @@ func TestLoadValidMetadata(t *testing.T) {
 			wantDesc:     "test description",
 			wantMetaDesc: "test meta description",
 		},
+		{
+			name: "Post Image Detection",
+			path: "fakepageloc",
+			fileData: fstest.MapFS{
+				"fakepageloc/some_page.html": &fstest.MapFile{Data: []byte("---\nimage: /blah/epicimage.webp\n---\ntest body")},
+			},
+			wantImageMime: "image/webp",
+			wantImage:     "/blah/epicimage.webp",
+		},
 	}
 
 	for _, test := range tests {
@@ -389,6 +400,12 @@ func TestLoadValidMetadata(t *testing.T) {
 			}
 			if test.wantPath != "" {
 				testutil.AssertEqual(t, "path", ce.OutputPath, test.wantPath)
+			}
+			if test.wantImageMime != "" {
+				testutil.AssertEqual(t, "image_mime", ce.ContentMetadata.ImageMime, test.wantImageMime)
+			}
+			if test.wantImageMime != "" {
+				testutil.AssertEqual(t, "image", ce.ContentMetadata.Image, test.wantImage)
 			}
 		})
 	}
