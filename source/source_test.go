@@ -80,10 +80,11 @@ func TestSitemapLoading(t *testing.T) {
 	tests := []struct {
 		name string
 
-		fileName  string
-		fileData  []byte
-		exclusion string
-		path      string
+		fileName      string
+		fileData      []byte
+		exclusion     string
+		path          string
+		fullHtmlPaths bool
 
 		wantPath string
 	}{
@@ -93,6 +94,27 @@ func TestSitemapLoading(t *testing.T) {
 			fileName:  "fakepostloc/2026-06-01-basic_post.md",
 			fileData:  []byte("---\ntitle: Exclude Sitemap\ntype: posts\n---\n# Header"),
 			exclusion: "/posts",
+
+			fullHtmlPaths: true,
+		},
+		{
+			name:      "Should Not Exclude From Sitemap When Not Matched",
+			path:      "fakepostloc",
+			fileName:  "fakepostloc/2026-06-01-basic_post.md",
+			fileData:  []byte("---\ntitle: Include Sitemap\ntype: posts\n---\n# Header"),
+			exclusion: "/loc",
+			wantPath:  "http://yourdomain.com/posts/basic-post.html",
+
+			fullHtmlPaths: true,
+		},
+		{
+			name:      "Should Exclude From Sitemap When Matched",
+			path:      "fakepostloc",
+			fileName:  "fakepostloc/2026-06-01-basic_post.md",
+			fileData:  []byte("---\ntitle: Exclude Sitemap\ntype: posts\n---\n# Header"),
+			exclusion: "/posts",
+
+			fullHtmlPaths: false,
 		},
 		{
 			name:      "Should Not Exclude From Sitemap When Not Matched",
@@ -101,6 +123,8 @@ func TestSitemapLoading(t *testing.T) {
 			fileData:  []byte("---\ntitle: Include Sitemap\ntype: posts\n---\n# Header"),
 			exclusion: "/loc",
 			wantPath:  "http://yourdomain.com/posts/basic-post/",
+
+			fullHtmlPaths: false,
 		},
 	}
 
@@ -110,6 +134,7 @@ func TestSitemapLoading(t *testing.T) {
 			ctx.PostInputDir = test.path
 			ctx.AllowTaxonomyPaths = true
 			ctx.SitemapExclusions = []string{test.exclusion}
+			ctx.FullHtmlPaths = test.fullHtmlPaths
 
 			testFile := fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}}
 			store, _ := testutil.NewFakeStorage(testFile)

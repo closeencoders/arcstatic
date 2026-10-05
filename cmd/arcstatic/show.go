@@ -37,19 +37,23 @@ func createShowCommand(ssg *ssg) {
 }
 
 func executeShowConfig(ctx *config.SiteContext) error {
-
-	if ctx == nil {
-		return fmt.Errorf("No valid configuration found to print")
+	data, err := getConfigData(ctx)
+	if err != nil {
+		return err
 	}
+	fmt.Println(string(data))
+	return nil
+}
 
+func getConfigData(ctx *config.SiteContext) ([]byte, error) {
+	if ctx == nil {
+		return []byte{}, fmt.Errorf("No valid configuration found to print")
+	}
 	content, err := json.MarshalIndent(ctx, "", " ")
 	if err != nil {
-		return fmt.Errorf("unable to marshal configuration: %w", err)
+		return []byte{}, fmt.Errorf("unable to marshal configuration: %w", err)
 	}
-
-	fmt.Println(string(content))
-
-	return nil
+	return content, nil
 }
 
 // TODO: Currently shares the same process the verify command will have.

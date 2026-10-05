@@ -171,7 +171,7 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 			return nil
 		}
 
-		ce, err := m.getContentMetadata(fileData.Data, fileData.Name, root)
+		ce, err := m.getContentMetadata(fileData, root)
 		if err != nil {
 			return fmt.Errorf("failed to convert to content %s: %w", path, err)
 		}
@@ -281,16 +281,23 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 			ce.RelativePath = path.Join(m.ctx.Base, subDir, outFilename)
 		}
 		ce.RelativePath += "/"
+		ce.ContentMetadata.Url = ce.RelativePath
 	} else {
+		ce.RelativePath = path.Join(m.ctx.Base, subDir)
+
 		if usePermalink {
 			ce.OutputPath = filepath.Join(subDir, ce.ContentMetadata.Permalink)
+			ce.RelativePath = path.Join(m.ctx.Base, subDir)
+			ce.ContentMetadata.Url = ce.RelativePath
+
 		} else {
 			ce.OutputPath = filepath.Join(subDir, outFilename)
+			if !strings.HasSuffix(ce.OutputPath, ".html") {
+				ce.OutputPath += ".html"
+				ce.ContentMetadata.Url = path.Join(ce.RelativePath, outFilename+".html")
+			}
 		}
-		ce.RelativePath = path.Join(m.ctx.Base, subDir)
 	}
-
-	ce.ContentMetadata.Url = ce.RelativePath
 }
 
 func (m *metadata) isUsePrettyUrl(ce *ContentEntity) bool {
@@ -299,29 +306,29 @@ func (m *metadata) isUsePrettyUrl(ce *ContentEntity) bool {
 
 // TODO: the input dir is not a dir, its the path to the content file. this needs to be corrected so the artificial name is
 // the output file name after filtering and the input dir is field name is correct, InPath or something...
-func (m *metadata) getContentMetadata(fileData []byte, fileName string, root string) (*ContentEntity, error) {
+func (m *metadata) getContentMetadata(fileData storage.FileData, root string) (*ContentEntity, error) {
 
-	frontmatter, bodyData, err := SplitFileContent(fileData, m.ctx.FrontmatterToken)
+	frontmatter, bodyData, err := SplitFileContent(fileData.Data, m.ctx.FrontmatterToken)
 	if err != nil {
-		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileName, "err", err)
+		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileData.Name, "err", err)
+	} else {
+		frontmatter.Description = m.extractDescription(frontmatter, bodyData)
+		if strings.TrimSpace(frontmatter.MetaDescription) == "" {
+			frontmatter.MetaDescription = frontmatter.Description
+		}
 	}
 
-	frontmatter.Description = m.extractDescription(frontmatter, bodyData)
-	if strings.TrimSpace(frontmatter.MetaDescription) == "" {
-		frontmatter.MetaDescription = frontmatter.Description
-	}
-
-	artificialFileName := whitelistRegex.ReplaceAllString(fileName, "-")
+	artificialFileName := whitelistRegex.ReplaceAllString(fileData.Name, "-")
 	artificialFileName = strings.Join(strings.Fields(strings.ToLower(artificialFileName)), "-")
 
 	ce := ContentEntity{
-		FileName:           fileName,
+		FileName:           fileData.Name,
 		ArtificialFileName: artificialFileName,
 		// TODO: transformation to metadata around here or when split from the file should allow the frontmatter to be dynamically set
 		ContentMetadata: frontmatter,
 	}
 
-	datePrefix := isoDateRegex.FindStringIndex(fileName)
+	datePrefix := isoDateRegex.FindStringIndex(fileData.Name)
 	if !m.ctx.AllowNamelessDateSort && root != m.ctx.PageInputDir {
 		if datePrefix == nil || datePrefix[0] != 0 {
 			return nil, errDatePrefix
@@ -359,16 +366,21 @@ func (m *metadata) updateSitemap(ce *ContentEntity, metadata *SiteMetadata, last
 		mapUrl.Path = path.Join(mapUrl.Path, ce.OutputPath)
 	} else {
 		if m.isUsePrettyUrl(ce) {
-			mapUrl.Path = path.Join(mapUrl.Path, ce.RelativePath)
-			mapUrl.Path += "/"
+			mapUrl = mapUrl.JoinPath(ce.RelativePath, "/")
 		} else {
 			mapUrl.Path = path.Join(mapUrl.Path, ce.RelativePath)
 		}
 	}
 
-	if len(m.ctx.SitemapExclusions) > 0 && containsAny(mapUrl.Path, m.ctx.SitemapExclusions) {
-		slog.Debug("map url excluded", "path", mapUrl)
+	if mapUrl == nil {
+		slog.Warn("unable to process URL for sitemap", "name", ce.FileName)
 		return
+	}
+	if len(m.ctx.SitemapExclusions) > 0 {
+		if containsAny(mapUrl.String(), m.ctx.SitemapExclusions) {
+			slog.Debug("map url excluded", "path", mapUrl)
+			return
+		}
 	}
 
 	xmlUrl := SitemapUrl{Loc: mapUrl.String()}

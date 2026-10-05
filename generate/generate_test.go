@@ -36,6 +36,7 @@ func TestGenerate(t *testing.T) {
 
 			store, _ := testutil.NewFakeStorage(fstest.MapFS{test.fileName: &fstest.MapFile{Data: test.fileData}})
 			conv, sm, err := createTestData(ctx, store)
+
 			if err != nil {
 				t.Fatal("test failed")
 			}
@@ -45,6 +46,7 @@ func TestGenerate(t *testing.T) {
 
 			testutil.AssertEqual(t, "Image not persisted for generate process", sm.SiteContentEntities[0].ContentMetadata.Image, "/yee/epic/image.webp")
 			testutil.AssertEqual(t, "Image type not persisted for generate process", sm.SiteContentEntities[0].ContentMetadata.ImageMime, "image/webp")
+			testutil.AssertEqual(t, "Image type not persisted for generate process", sm.SiteContentEntities[0].ContentMetadata.Url, "/basic-post/")
 		})
 
 	}

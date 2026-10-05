@@ -20,7 +20,12 @@ type Markdown struct {
 	goldmark goldmark.Markdown
 }
 
+// TODO:
 type MarkdownResult struct {
+	Markdown []byte
+}
+
+type HTMLResult struct {
 	HTML []byte
 	TOC  []byte
 }
@@ -41,9 +46,9 @@ func NewMarkdown(ctx *config.SiteContext) *Markdown {
 	return &Markdown{ctx: ctx, goldmark: gm}
 }
 
-func (m *Markdown) ToHtml(content []byte) (*MarkdownResult, error) {
+func (m *Markdown) ToHtml(content []byte) (*HTMLResult, error) {
 
-	var result MarkdownResult
+	var result HTMLResult
 	docNode := m.goldmark.Parser().Parse(text.NewReader(content))
 	if m.ctx.MakeTableOfContents {
 		tocBuffer := makeTableOfContents(content, &docNode)

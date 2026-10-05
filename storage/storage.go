@@ -16,6 +16,7 @@ type Storage interface {
 	CopyDir(perm int, from string, to string) error
 	Copy(perm int, from string, to string) error
 	GetWd() (string, error)
+	Exists(name string) bool
 }
 
 type osFileStorage struct{}
@@ -106,6 +107,11 @@ func (f osFileStorage) Copy(perm int, from string, to string) error {
 
 func (f osFileStorage) GetWd() (string, error) {
 	return os.Getwd()
+}
+
+func (f osFileStorage) Exists(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
 }
 
 func ToCleanAbs(path string) (string, error) {

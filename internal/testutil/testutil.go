@@ -69,6 +69,10 @@ func (fs FakeStorage) GetWd() (string, error) {
 	return fs.state.CurrentWd, nil
 }
 
+func (fs FakeStorage) Exists(name string) bool {
+	return true
+}
+
 func AssertEqual(t *testing.T, msg string, got, want any) {
 	t.Helper()
 	if got != want {
