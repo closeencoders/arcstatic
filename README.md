@@ -61,7 +61,12 @@ Create an `arcconfig.yml` file in the root directory of your project:
 ```yaml
 # Overrides the default post content directory.
 # This avoids having to specify -i /your/location on the command line and allows content to be stored separately from the project.
-post_input_dir: /override/input/post/location
+post_input_dir: /override/input/posts/location
+
+page_input_dir: /override/input/pages/location
+
+template_input_dir: /override/input/templates/location
+component_input_dir: /override/input/components/location
 
 # The base URL of your site.
 site_url: https://yourdomain.zom
