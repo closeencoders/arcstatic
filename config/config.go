@@ -19,12 +19,18 @@ type SiteContext struct {
 
 	// FrontmatterToken marks the boundary of configuration blocks in source files (e.g., "---" or "+++").
 	FrontmatterToken string `yaml:"frontmatter_token"`
+
 	// PostInputDir is the absolute path to the raw posts folder, decoupled from output locations.
 	PostInputDir string `yaml:"post_input_dir"`
 	// PostOutputDir is the path to write compiled posts, relative to the SiteRoot.
 	PostOutputDir string `yaml:"post_output_dir"`
-	// TODO:
-	PageInputDir string
+
+	// PageInputDir is the absolute path to the raw pages folder, decoupled from output locations.
+	PageInputDir string `yaml:"page_input_dir"`
+	// ComponentInputDir is the absolute path to the raw pages folder, decoupled from output locations.
+	ComponentInputDir string `yaml:"component_input_dir"`
+	// TemplateInputDir is the absolute path to the raw pages folder, decoupled from output locations.
+	TemplateInputDir string `yaml:"template_input_dir"`
 
 	// If set to true, will use a full path to the html file (e.g. /blah/content.html)
 	FullHtmlPaths bool `yaml:"full_html_paths"`

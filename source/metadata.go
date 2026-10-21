@@ -78,13 +78,14 @@ type ContentEntity struct {
 
 // TODO: This should be more dynamic, the base values that are standard can be defined, but the user should be able to add whatever they want whenever they want.
 type ContentMetadata struct {
-	Title       string `json:"title" yaml:"title"`
-	Image       string `json:"image" yaml:"image"`
-	ImageMime   string `json:"-" yaml:"image_mime"`
-	Url         string `json:"url" yaml:"url"`
-	Description string `json:"description" yaml:"description"`
-	Author      string `json:"author" yaml:"author"`
-	Handle      string `json:"handle" yaml:"handle"`
+	Title        string `json:"title" yaml:"title"`
+	Image        string `json:"image" yaml:"image"`
+	ImageCaption string `json:"image_caption" yaml:"image_caption"`
+	ImageMime    string `json:"-" yaml:"image_mime"`
+	Url          string `json:"url" yaml:"url"`
+	Description  string `json:"description" yaml:"description"`
+	Author       string `json:"author" yaml:"author"`
+	Handle       string `json:"handle" yaml:"handle"`
 
 	AltImage        string `json:"-" yaml:"alt_image"`
 	MetaDescription string `json:"-" yaml:"meta_description"`
@@ -280,7 +281,9 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 			ce.OutputPath = filepath.Join(subDir, outFilename, _indexHtmlFile)
 			ce.RelativePath = path.Join(m.ctx.Base, subDir, outFilename)
 		}
-		ce.RelativePath += "/"
+		if !strings.HasSuffix(ce.RelativePath, "/") {
+			ce.RelativePath += "/"
+		}
 		ce.ContentMetadata.Url = ce.RelativePath
 	} else {
 		ce.RelativePath = path.Join(m.ctx.Base, subDir)
@@ -304,6 +307,10 @@ func (m *metadata) isUsePrettyUrl(ce *ContentEntity) bool {
 	return !m.ctx.FullHtmlPaths && ce.FileName != _indexHtmlFile
 }
 
+func shouldDefaultDescription(extension string, frontmatter ContentMetadata) bool {
+	return (extension != "md" && extension != "markdown") && (frontmatter.Description == "" && frontmatter.MetaDescription == "")
+}
+
 // TODO: the input dir is not a dir, its the path to the content file. this needs to be corrected so the artificial name is
 // the output file name after filtering and the input dir is field name is correct, InPath or something...
 func (m *metadata) getContentMetadata(fileData storage.FileData, root string) (*ContentEntity, error) {
@@ -312,9 +319,13 @@ func (m *metadata) getContentMetadata(fileData storage.FileData, root string) (*
 	if err != nil {
 		slog.Warn("unable to extract frontmatter, continuing with defaults", "file", fileData.Name, "err", err)
 	} else {
-		frontmatter.Description = m.extractDescription(frontmatter, bodyData)
-		if strings.TrimSpace(frontmatter.MetaDescription) == "" {
-			frontmatter.MetaDescription = frontmatter.Description
+		if shouldDefaultDescription(fileData.Extension, frontmatter) {
+			frontmatter.Description = frontmatter.Title
+		} else {
+			frontmatter.Description = m.extractDescription(frontmatter, bodyData)
+			if strings.TrimSpace(frontmatter.MetaDescription) == "" {
+				frontmatter.MetaDescription = frontmatter.Description
+			}
 		}
 	}
 
@@ -366,9 +377,12 @@ func (m *metadata) updateSitemap(ce *ContentEntity, metadata *SiteMetadata, last
 		mapUrl.Path = path.Join(mapUrl.Path, ce.OutputPath)
 	} else {
 		if m.isUsePrettyUrl(ce) {
-			mapUrl = mapUrl.JoinPath(ce.RelativePath, "/")
+			mapUrl.Path = ce.RelativePath
 		} else {
 			mapUrl.Path = path.Join(mapUrl.Path, ce.RelativePath)
+		}
+		if !strings.HasSuffix(mapUrl.String(), "/") {
+			mapUrl = mapUrl.JoinPath("/")
 		}
 	}
 

@@ -75,6 +75,59 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestConfigOverrides(t *testing.T) {
+
+	const baseDir = "testlocation"
+	configLoc := path.Join(baseDir, ConfigName)
+
+	test := struct {
+		name       string
+		configFile fstest.MapFS
+
+		wantUrl          string
+		wantPostDir      string
+		wantPageDir      string
+		wantComponentDir string
+		wantTemplateDir  string
+
+		wantErr error
+	}{
+		name: "Context Should Use All Overrides",
+		configFile: fstest.MapFS{
+			configLoc: &fstest.MapFile{
+				Data: []byte(
+					"site_url: https://location.com\n" +
+						"post_input_dir: location123/posts\n" +
+						"page_input_dir: location123/pages\n" +
+						"component_input_dir: location123/components\n" +
+						"template_input_dir: location123/templates\n",
+				),
+			},
+		},
+		wantUrl:          "https://location.com",
+		wantPostDir:      "location123/posts",
+		wantPageDir:      "location123/pages",
+		wantComponentDir: "location123/components",
+		wantTemplateDir:  "location123/templates",
+	}
+
+	t.Run("Full Config Override Test", func(t *testing.T) {
+		store, _ := testutil.NewFakeStorage(test.configFile)
+		ctx, err := LoadSiteContext(baseDir, baseDir, store)
+		if err != nil {
+			if test.wantErr != nil && errors.Is(err, test.wantErr) {
+				return
+			}
+			t.Fatalf("unexpected error state while loading site context test: %v, wantErr: %v", err, test.wantErr)
+		}
+		testutil.AssertEqual(t, "SiteUrl", ctx.SiteURL, test.wantUrl)
+		testutil.AssertEqual(t, "PostInputDir", ctx.PostInputDir, test.wantPostDir)
+		testutil.AssertEqual(t, "PageInputDir", ctx.PageInputDir, test.wantPageDir)
+		testutil.AssertEqual(t, "ComponentInputDir", ctx.ComponentInputDir, test.wantComponentDir)
+		testutil.AssertEqual(t, "TemplateInputDir", ctx.TemplateInputDir, test.wantTemplateDir)
+	})
+}
+
 func TestSitemapLoading(t *testing.T) {
 
 	tests := []struct {

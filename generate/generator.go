@@ -107,13 +107,13 @@ func (g *generator) copyAssets(basePath string) error {
 	}
 
 	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "_") {
+		if strings.HasPrefix(e.Name(), "_") || strings.HasPrefix(e.Name(), ".git") || strings.HasPrefix(e.Name(), ".env") {
 			continue
 		}
 		in := filepath.Join(g.ctx.SiteRoot, e.Name())
 		out := filepath.Join(basePath, e.Name())
 
-		if e.IsDir() {
+		if e.IsDir() || e.Name() != ".git" {
 			err := g.store.CopyDir(_defaultFilePerm, in, out)
 			if err != nil {
 				slog.Error("Failed to copy dir to export location", "error", err)

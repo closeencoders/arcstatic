@@ -18,7 +18,7 @@ const (
 	_pagesLoc      = "_pages"
 	_componentsLoc = "_components"
 	_templatesLoc  = "_templates"
-	_defaultUrl    = "http://yourdomain.com/#"
+	_defaultUrl    = "http://yourdomain.com/"
 	ConfigName     = "arcconfig.yml"
 )
 
@@ -28,7 +28,7 @@ var (
 
 func LoadSiteContext(inputPath string, outputPath string, store fs.FS) (*config.SiteContext, error) {
 
-	ctx, err := createSiteContext(inputPath, outputPath, store)
+	ctx, err := createSiteContext(inputPath, store)
 
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -39,22 +39,29 @@ func LoadSiteContext(inputPath string, outputPath string, store fs.FS) (*config.
 		}
 	}
 
+	componentsPath := filepath.Join(inputPath, _componentsLoc)
+	if ctx.ComponentInputDir != "" {
+		componentsPath = ctx.ComponentInputDir
+	}
+	templatesPath := filepath.Join(inputPath, _templatesLoc)
+	if ctx.TemplateInputDir != "" {
+		templatesPath = ctx.TemplateInputDir
+	}
+
 	// Override config with passed in if available and not in config
 	if outputPath != "" {
 		slog.Debug("setting output override", "path", outputPath)
 		ctx.SiteOutputRoot = outputPath
 	} else if strings.TrimSpace(ctx.SiteOutputRoot) == "" {
-		slog.Debug("SiteOutputRoot not set in configuration", "path", inputPath)
+		slog.Debug("SiteOutputRoot not set in configuration, defaulting location to given input", "path", inputPath)
 		ctx.SiteOutputRoot = inputPath
 	}
 
 	// TODO: Embedded defaults/themes
-	componentsPath := filepath.Join(inputPath, _componentsLoc)
 	componentsMap, err := storage.LoadFilesToMap(componentsPath, store)
 	if err != nil {
 		slog.Warn("components not loaded, embedded defaults/themes are not implemented yet, content may not be rendered properly", "path", componentsPath)
 	}
-	templatesPath := filepath.Join(inputPath, _templatesLoc)
 	templatesMap, err := storage.LoadFilesToMap(templatesPath, store)
 	if err != nil {
 		slog.Warn("templates not loaded, embedded defaults/themes are not implemented yet, content may not be rendered properly", "path", templatesPath)
@@ -66,7 +73,7 @@ func LoadSiteContext(inputPath string, outputPath string, store fs.FS) (*config.
 }
 
 // TODO: This is still being overridden by the config file in some cases for now.
-func createSiteContext(inputPath string, outputPath string, store fs.FS) (*config.SiteContext, error) {
+func createSiteContext(inputPath string, store fs.FS) (*config.SiteContext, error) {
 
 	var configPath string = inputPath
 	if !strings.HasSuffix(inputPath, ConfigName) {

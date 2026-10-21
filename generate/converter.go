@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -30,7 +29,13 @@ func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, man
 	}
 
 	canonicalUrl, _ := url.Parse(c.ctx.SiteURL)
-	canonicalUrl.Path = path.Join(canonicalUrl.Path, content.ContentMetadata.Url)
+	canonicalUrl = canonicalUrl.JoinPath(canonicalUrl.Path, content.ContentMetadata.Url)
+	if !c.ctx.FullHtmlPaths && !strings.HasSuffix(canonicalUrl.String(), "/") {
+		canonicalUrl = canonicalUrl.JoinPath("/")
+	}
+	if content.ContentMetadata.Image != "" && !strings.HasPrefix(content.ContentMetadata.Image, "/") {
+		content.ContentMetadata.Image = "/" + content.ContentMetadata.Image
+	}
 
 	renderMap := map[string]interface{}{
 		"Metadata":     content.ContentMetadata,
