@@ -74,6 +74,9 @@ site_url: https://yourdomain.zom
 # Makes table-of-contents data available for content with detectable headings.
 make_toc: true
 
+# Tells the generator to output a posts.json in /assets/data instead of the root of the project.
+post_metadata_dir: "/assets/data"
+
 # Assigns a default type to all rendered content.
 # This value can be used for querying and looping.
 default_type: blog
