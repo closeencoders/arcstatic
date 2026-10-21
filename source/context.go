@@ -29,7 +29,6 @@ var (
 func LoadSiteContext(inputPath string, outputPath string, store fs.FS) (*config.SiteContext, error) {
 
 	ctx, err := createSiteContext(inputPath, store)
-
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			slog.Warn("no valid configuration file found, using defaults", "path", inputPath, "err", err)
@@ -46,6 +45,10 @@ func LoadSiteContext(inputPath string, outputPath string, store fs.FS) (*config.
 	templatesPath := filepath.Join(inputPath, _templatesLoc)
 	if ctx.TemplateInputDir != "" {
 		templatesPath = ctx.TemplateInputDir
+	}
+	if ctx.AssetsInputDir == "" {
+		slog.Debug("using default assets location in current input location", "input", inputPath)
+		ctx.AssetsInputDir = filepath.Join(inputPath, "assets")
 	}
 
 	// Override config with passed in if available and not in config

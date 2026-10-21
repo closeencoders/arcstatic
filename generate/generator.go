@@ -63,11 +63,27 @@ func (g *generator) Generate(metadata *source.SiteMetadata) error {
 	if g.ctx.MakeSitemapXML && len(metadata.SiteMapUrlMetadata) > 0 {
 		g.createSitemapFile(baseOutPath, metadata.SiteMapUrlMetadata)
 	}
-	if g.ctx.SiteOutputRoot != "" && g.ctx.SiteRoot != "" && g.ctx.SiteOutputRoot != g.ctx.SiteRoot {
-		g.copyAssets(baseOutPath)
+	if g.shouldCopyAssets() {
+		g.copyAssets(g.ctx.AssetsInputDir)
 	}
 
 	return nil
+}
+
+func (g *generator) shouldCopyAssets() bool {
+
+	if g.ctx.SiteOutputRoot != "" && g.ctx.SiteRoot != "" {
+		// The asset input location has been overridden to a valid location outside of site root.
+		if g.ctx.AssetsInputDir != "" && g.ctx.AssetsInputDir != g.ctx.SiteOutputRoot && g.ctx.AssetsInputDir != filepath.Join(g.ctx.SiteOutputRoot, "assets") {
+			return true
+		}
+		// The root export location for the site is not in the same location at all.
+		if g.ctx.SiteOutputRoot != g.ctx.SiteRoot {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (g *generator) makeContent(ce *source.ContentEntity, metadata *source.SiteMetadata, baseOutPath string) error {
@@ -98,10 +114,10 @@ func (g *generator) makeContent(ce *source.ContentEntity, metadata *source.SiteM
 	return nil
 }
 
-func (g *generator) copyAssets(basePath string) error {
+func (g *generator) copyAssets(assetsLoc string) error {
 
-	slog.Debug("copying assets", "from", basePath, "to", g.ctx.SiteOutputRoot)
-	entries, err := os.ReadDir(g.ctx.SiteRoot)
+	slog.Debug("copying assets", "from", assetsLoc, "to", g.ctx.SiteOutputRoot)
+	entries, err := os.ReadDir(assetsLoc)
 	if err != nil {
 		return err
 	}
@@ -110,18 +126,17 @@ func (g *generator) copyAssets(basePath string) error {
 		if strings.HasPrefix(e.Name(), "_") || strings.HasPrefix(e.Name(), ".git") || strings.HasPrefix(e.Name(), ".env") {
 			continue
 		}
-		in := filepath.Join(g.ctx.SiteRoot, e.Name())
-		out := filepath.Join(basePath, e.Name())
-
+		in := filepath.Clean(filepath.Join(assetsLoc, e.Name()))
+		out := filepath.Clean(filepath.Join(g.ctx.SiteOutputRoot, "assets", e.Name()))
 		if e.IsDir() || e.Name() != ".git" {
 			err := g.store.CopyDir(_defaultFilePerm, in, out)
 			if err != nil {
-				slog.Error("Failed to copy dir to export location", "error", err)
+				slog.Error("Failed to copy dir to assets export location", "error", err)
 			}
 		} else {
 			err := g.store.Copy(_defaultFilePerm, in, out)
 			if err != nil {
-				slog.Error("Failed to copy file to export location", "error", err)
+				slog.Error("Failed to copy file to assets export location", "error", err)
 			}
 		}
 	}

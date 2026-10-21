@@ -27,10 +27,12 @@ type SiteContext struct {
 
 	// PageInputDir is the absolute path to the raw pages folder, decoupled from output locations.
 	PageInputDir string `yaml:"page_input_dir"`
-	// ComponentInputDir is the absolute path to the raw pages folder, decoupled from output locations.
+	// ComponentInputDir is the absolute path to the raw components folder, decoupled from output locations.
 	ComponentInputDir string `yaml:"component_input_dir"`
-	// TemplateInputDir is the absolute path to the raw pages folder, decoupled from output locations.
+	// TemplateInputDir is the absolute path to the raw templates folder, decoupled from output locations.
 	TemplateInputDir string `yaml:"template_input_dir"`
+	// AssetsInputDir is the absolute path to the raw assets folder, (e.g. images), decoupled from output locations.
+	AssetsInputDir string `yaml:"assets_input_dir"`
 
 	// If set to true, will use a full path to the html file (e.g. /blah/content.html)
 	FullHtmlPaths bool `yaml:"full_html_paths"`
