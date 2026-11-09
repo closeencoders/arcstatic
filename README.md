@@ -10,7 +10,14 @@ Arcstatic is a simple static site generator practice/learning project. While not
 
 ```
 Usage:
-  arcstatic [flags]
+  arcstatic [flags]            (Run base functionality. This may eventually be abstracted to commands, but I like the simplicity)
+  arcstatic [command] [flags]  (Run additional functionality)
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  init        create basic project
+  show        show or print functions
 
 Flags:
   -b, --build        builds static site from provided resources
