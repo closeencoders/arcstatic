@@ -121,6 +121,29 @@ The engine uses Goldmark and Go’s built-in templating to loop over entities wh
 
 For full templates and examples, checkout out the template repo: <a href="https://github.com/closeencoders/arcstatic-templates">https://github.com/closeencoders/arcstatic-templates</a>
 
+If a page template and a post template exist, the system should default to one or the other depending on whether the content is in the post input or the page input. A custom template override can be applied in the content metadata header.
+
+```yaml
+---
+title: Learning Arcstatic
+date: 2026-03-17
+image: /assets/img/posts/2026/example.webp
+...
+# Apply a custom template
+template_id: custom-template.html
+...
+type: posts
+categories:
+  - essays
+tags:
+  - programming
+  - software
+---
+<YOUR CONTENT>
+```
+
+For the template, it should work as expected with you metadata available at runtime.
+
 ```html
 <!doctype html>
 <html lang="en">
