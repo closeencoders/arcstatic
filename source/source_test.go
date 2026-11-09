@@ -257,6 +257,17 @@ func TestTaxonomy(t *testing.T) {
 			wantType:    "other",
 			wantOutPath: "other/basic-post/index.html",
 		},
+		{
+			name:     "Post With Default Type And Custom Template Should Be Added To Manifest",
+			path:     "fakepostloc",
+			fileName: "fakepostloc/2026-06-01-basic_post.md",
+			fileData: []byte("---\ntitle: Hello\ntemplate_id: research.html\n---\n# Header"),
+
+			allowTaxonomyPaths: true,
+
+			wantType:    initContext.DefaultType,
+			wantOutPath: initContext.DefaultType + "/basic-post/index.html",
+		},
 	}
 
 	for _, test := range tests {

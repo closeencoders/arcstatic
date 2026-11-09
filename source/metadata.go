@@ -246,14 +246,14 @@ func (m *metadata) buildPaths(root string, ce *ContentEntity) {
 		ce.ContentType = _post_type
 		if strings.TrimSpace(ce.ContentMetadata.TemplateId) == "" {
 			ce.ContentMetadata.TemplateId = _defaultPostTemplate
-			if m.ctx.AllowTaxonomyPaths && ce.ContentMetadata.Type != "" {
-				if len(m.ctx.PostOutputDir) > 1 {
-					subDir = filepath.Join(m.ctx.PostOutputDir, ce.ContentMetadata.Type)
-				} else {
-					subDir = ce.ContentMetadata.Type
-				}
-				slog.Debug("using type path", "type", ce.ContentMetadata.Type, "subdir", subDir)
+		}
+		if m.ctx.AllowTaxonomyPaths && ce.ContentMetadata.Type != "" {
+			if len(m.ctx.PostOutputDir) > 1 {
+				subDir = filepath.Join(m.ctx.PostOutputDir, ce.ContentMetadata.Type)
+			} else {
+				subDir = ce.ContentMetadata.Type
 			}
+			slog.Debug("using type path", "type", ce.ContentMetadata.Type, "subdir", subDir)
 		}
 
 	case m.ctx.PageInputDir:
