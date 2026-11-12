@@ -50,15 +50,16 @@ func (g *generator) Generate(metadata *source.SiteMetadata) error {
 		return fmt.Errorf("failed to create content output dir: %w", err)
 	}
 
+	metadata.FlattenTaxonomy()
+
 	for _, ce := range metadata.SiteContentEntities {
-		err := g.makeContent(ce, metadata, baseOutPath)
-		if err != nil {
-			return err
+		if err := g.makeContent(ce, metadata, baseOutPath); err != nil {
+			return fmt.Errorf("unable to make content %s, %w", ce.FileName, err)
 		}
 	}
 
-	if g.ctx.MakePostMetadata && len(metadata.ContentManifest) > 0 {
-		g.createMetadataFile(baseOutPath, metadata.ContentManifest[g.ctx.DefaultType])
+	if g.ctx.MakePostMetadata && len(metadata.Contents) > 0 {
+		g.createMetadataFile(baseOutPath, metadata.Contents[g.ctx.DefaultType])
 	}
 	if g.ctx.MakeSitemapXML && len(metadata.SiteMapUrlMetadata) > 0 {
 		g.createSitemapFile(baseOutPath, metadata.SiteMapUrlMetadata)
@@ -101,7 +102,7 @@ func (g *generator) makeContent(ce *source.ContentEntity, metadata *source.SiteM
 		return fmt.Errorf("unable to make new dir for content: %w", err)
 	}
 
-	content, err := g.converter.ToContent(fileData.Data, ce, metadata.ContentManifest)
+	content, err := g.converter.ToContent(fileData.Data, ce, metadata)
 	if err != nil {
 		return fmt.Errorf("unable to convert to content: %w", err)
 	}

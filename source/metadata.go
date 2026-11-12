@@ -48,15 +48,48 @@ type SitemapUrl struct {
 	LastMod string `xml:"lastmod,omitempty"`
 }
 
-type Manifest map[string][]*ContentMetadata
-
 type SiteMetadata struct {
 	// content entity struct to hold all original content metadata loaded from source material until I find a better pattern
 	SiteContentEntities []*ContentEntity
-	// Represent the state of every categorized content file without holding the entire file in memory
-	ContentManifest Manifest
+	// Reference to all discovered content metadata
+	Contents map[string][]*ContentMetadata
+	// Reference to all discovered taxonomy structures
+	SiteTaxonomyReference map[string]map[string]string
 	// Used for creating xml representations for the site for search engines, like a sitemap.xml
 	SiteMapUrlMetadata []SitemapUrl
+
+	taxonomy map[string][]string
+}
+
+func NewSiteMetadata() *SiteMetadata {
+	return &SiteMetadata{
+		Contents:              make(map[string][]*ContentMetadata),
+		SiteTaxonomyReference: make(map[string]map[string]string),
+		taxonomy:              make(map[string][]string),
+	}
+}
+
+func (sm *SiteMetadata) AddTaxonomy(id string, value string) {
+	if sm.SiteTaxonomyReference[id] == nil {
+		sm.SiteTaxonomyReference[id] = make(map[string]string)
+	}
+	sm.SiteTaxonomyReference[id][value] = value
+}
+
+func (sm *SiteMetadata) FlattenTaxonomy() error {
+	if len(sm.SiteTaxonomyReference) == 0 {
+		return nil
+	}
+	for k, v := range sm.SiteTaxonomyReference {
+		for kk, _ := range v {
+			sm.taxonomy[k] = append(sm.taxonomy[k], kk)
+		}
+	}
+	return nil
+}
+
+func (sm *SiteMetadata) GetFlattenedTaxonomy() map[string][]string {
+	return sm.taxonomy
 }
 
 type ContentEntity struct {
@@ -112,29 +145,29 @@ func NewMetadata(ctx *config.SiteContext, store storage.Storage) *metadata {
 
 func (m *metadata) LoadMetadata(paths ...string) (*SiteMetadata, error) {
 
-	var metadata SiteMetadata
-	metadata.ContentManifest = Manifest{}
+	var siteMetadata SiteMetadata
+	siteMetadata = *NewSiteMetadata()
 	for _, loc := range paths {
-		if err := m.readSiteMetadataFiles(loc, &metadata); err != nil {
+		if err := m.readSiteMetadataFiles(loc, &siteMetadata); err != nil {
 			return nil, fmt.Errorf("failed to load metadata for %s: %w", loc, err)
 		}
 	}
 
-	slices.SortFunc(metadata.SiteContentEntities, func(a, b *ContentEntity) int {
+	slices.SortFunc(siteMetadata.SiteContentEntities, func(a, b *ContentEntity) int {
 		return b.ContentMetadata.Date.Compare(a.ContentMetadata.Date)
 	})
 	// TODO: Split process so that alpha order does not require a sort
-	for k, s := range metadata.ContentManifest {
+	for k, s := range siteMetadata.Contents {
 		slices.SortFunc(s, func(a, b *ContentMetadata) int {
 			return b.Date.Compare(a.Date)
 		})
-		metadata.ContentManifest[k] = s
+		siteMetadata.Contents[k] = s
 	}
 
-	return &metadata, nil
+	return &siteMetadata, nil
 }
 
-func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) error {
+func (m *metadata) readSiteMetadataFiles(root string, siteMetadata *SiteMetadata) error {
 
 	baseLog := slog.With("root", root)
 	baseLog.Debug("searching for source files")
@@ -183,16 +216,16 @@ func (m *metadata) readSiteMetadataFiles(root string, metadata *SiteMetadata) er
 		ce.InputPath = path
 
 		if m.ctx.AllowManifest {
-			m.updateManifest(root, ce, metadata)
+			m.updateManifest(root, ce, siteMetadata)
 		}
 
 		m.buildPaths(root, ce)
 
 		if m.ctx.MakeSitemapXML {
-			m.updateSitemap(ce, metadata, fileData.LastMod)
+			m.updateSitemap(ce, siteMetadata, fileData.LastMod)
 		}
 
-		metadata.SiteContentEntities = append(metadata.SiteContentEntities, ce)
+		siteMetadata.SiteContentEntities = append(siteMetadata.SiteContentEntities, ce)
 
 		return err
 	})
@@ -207,31 +240,38 @@ func containsAny(data string, query []string) bool {
 	return false
 }
 
-func (m *metadata) updateManifest(root string, content *ContentEntity, metadata *SiteMetadata) {
-	cm := &content.ContentMetadata
+func (m *metadata) updateManifest(root string, content *ContentEntity, siteMetadata *SiteMetadata) {
+
+	contentMeta := &content.ContentMetadata
+	contentManifest := siteMetadata.Contents
+
 	if m.ctx.PostInputDir == root {
-		if cm.Type != "" && cm.Type != m.ctx.DefaultType {
-			metadata.ContentManifest[cm.Type] = append(metadata.ContentManifest[cm.Type], cm)
+		if contentMeta.Type != "" && contentMeta.Type != m.ctx.DefaultType {
+			contentManifest[contentMeta.Type] = append(contentManifest[contentMeta.Type], contentMeta)
+			siteMetadata.AddTaxonomy("types", contentMeta.Type)
 		} else {
 			slog.Debug("setting type", "type", m.ctx.DefaultType)
-			cm.Type = m.ctx.DefaultType
+			contentMeta.Type = m.ctx.DefaultType
 		}
 
-		metadata.ContentManifest[m.ctx.DefaultType] = append(metadata.ContentManifest[m.ctx.DefaultType], cm)
+		// The default type must always be set
+		contentManifest[m.ctx.DefaultType] = append(contentManifest[m.ctx.DefaultType], contentMeta)
 
-		m.appendTypes(cm, metadata.ContentManifest, cm.Tags...)
-		m.appendTypes(cm, metadata.ContentManifest, cm.Categories...)
+		m.appendTypes("categories", contentMeta, siteMetadata, contentMeta.Categories...)
+		m.appendTypes("tags", contentMeta, siteMetadata, contentMeta.Tags...)
 	}
 }
 
-func (m *metadata) appendTypes(cm *ContentMetadata, data map[string][]*ContentMetadata, types ...string) {
+func (m *metadata) appendTypes(level string, cm *ContentMetadata, siteMetadata *SiteMetadata, types ...string) {
 	if len(types) == 0 {
 		return
 	}
 	for _, id := range types {
 		id = strings.TrimSpace(id)
 		if id != "" && id != m.ctx.DefaultType {
-			data[id] = append(data[id], cm)
+			siteMetadata.Contents[id] = append(siteMetadata.Contents[id], cm)
+			// TODO: Reserved value for additional meta on taxonomy or taxonomy subtypes
+			siteMetadata.AddTaxonomy(level, id)
 		}
 	}
 }

@@ -21,7 +21,7 @@ func NewConverter(ctx *config.SiteContext, markdown Markdown, renderer Renderer)
 	return &converter{ctx: ctx, markdown: markdown, renderer: renderer}
 }
 
-func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, manifest source.Manifest) ([]byte, error) {
+func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, metadata *source.SiteMetadata) ([]byte, error) {
 
 	_, body, err := source.SplitFileContent(rawFile, c.ctx.FrontmatterToken)
 	if err != nil {
@@ -36,14 +36,14 @@ func (c *converter) ToContent(rawFile []byte, content *source.ContentEntity, man
 	if content.ContentMetadata.Image != "" && !strings.HasPrefix(content.ContentMetadata.Image, "/") {
 		content.ContentMetadata.Image = "/" + content.ContentMetadata.Image
 	}
-
 	renderMap := map[string]interface{}{
 		"Metadata":     content.ContentMetadata,
 		"CanonicalURL": canonicalUrl.String(),
+		"Taxonomy":     metadata.GetFlattenedTaxonomy(),
 		"SiteUrl":      c.ctx.SiteURL,
 		"Copy":         c.ctx.Copy,
 	}
-	for k, v := range manifest {
+	for k, v := range metadata.Contents {
 		renderMap[k] = v
 	}
 

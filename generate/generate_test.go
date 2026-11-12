@@ -92,7 +92,7 @@ func TestContentConversion(t *testing.T) {
 				t.Fatal("test failed")
 			}
 
-			content, err := conv.ToContent(test.fileData, sm.SiteContentEntities[0], sm.ContentManifest)
+			content, err := conv.ToContent(test.fileData, sm.SiteContentEntities[0], sm)
 			if err != nil {
 				t.Fatal("learning before refactoring")
 			}

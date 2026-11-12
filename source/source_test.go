@@ -291,7 +291,7 @@ func TestTaxonomy(t *testing.T) {
 			ce := result.SiteContentEntities[0]
 			testutil.AssertEqual(t, "wrong type", ce.ContentMetadata.Type, test.wantType)
 
-			_, ok := result.ContentManifest[test.wantType]
+			_, ok := result.Contents[test.wantType]
 			if !ok {
 				t.Errorf("type was not applied to content manifest %s %s", test.wantType, ce.FileName)
 			}
